@@ -1,0 +1,53 @@
+name: ns3_project
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  http: ^1.6.0
+  awesome_dialog: ^3.3.0
+  shared_preferences: ^2.5.4
+  intl: ^0.20.2
+  camera: ^0.12.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/images/admin.jpg
+    - assets/images/super-admin.png
+    - assets/images/logo/Logo-app.png
+    - assets/images/logo/Full-logo.png
+    - assets/images/logo/issf-logo.png
+    - assets/images/logo/wrabf-logo.png
+    - assets/images/target/10m-air-pistol.png
+    - assets/images/target/25-50m-pistol.png
+    - assets/images/target/25m-center-rapid-fire-pistol.jpg
+    - assets/images/target/10m-running-target.png 
+    - assets/images/target/10m-air-rifle.jpg
+    - assets/images/target/wrabf-25m-rifle.png
+    - assets/images/target/issf-50m-riffle.png
+    - assets/images/target/wrabf-50m-rifle.png
+
+  fonts:
+    - family: Lexend
+      fonts:
+        - asset: assets/fonts/Lexend-Regular.ttf
+        - asset: assets/fonts/Lexend-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Lexend-Light.ttf
+          weight: 400
