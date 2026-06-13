@@ -15,7 +15,6 @@ class ComponentFormRegister extends StatefulWidget {
   @override
   State<ComponentFormRegister> createState() => _ComponentFormRegisterState();
 }
-
 class _ComponentFormRegisterState extends State<ComponentFormRegister> {
   final _formKey = GlobalKey<FormState>();
 

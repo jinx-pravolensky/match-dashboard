@@ -115,11 +115,10 @@ class _DetailSesiScreenState extends State<DetailSesiScreen> {
     bool isScanned = currentSesiData['score'] != '-';
 
     String displayScore = isScanned ? currentSesiData['score'].toString() : "0";
-    String windage = isScanned ? currentSesiData['windage'] : "0,0 mm";
-    String elevation = isScanned ? currentSesiData['elevation'] : "0,0 mm";
-    String meanRadius = isScanned ? currentSesiData['meanRadius'] : "0,0 mm";
-    String maxSpread = isScanned ? currentSesiData['maxSpread'] : "0,0 mm";
-
+    String windage = currentSesiData['windage'] ?? "0,0 mm";
+    String elevation = currentSesiData['elevation'] ?? "0,0 mm";
+    String meanRadius = currentSesiData['meanRadius'] ?? "0,0 mm";
+    String maxSpread = currentSesiData['maxSpread'] ?? "0,0 mm";
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(

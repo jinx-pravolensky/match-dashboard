@@ -51,6 +51,11 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
   ShotHole? _draggingHole;
   bool _isDataExtracted = false;
 
+  String windageStr = "0,0 mm";
+  String elevationStr = "0,0 mm";
+  String meanRadiusStr = "0,0 mm";
+  String maxSpreadStr = "0,0 mm";
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -84,8 +89,91 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
     for (var hole in holes) {
       tempTotal += hole.score;
     }
+
+    // ==========================================
+    // MESIN PENGHITUNG 4 SEKAWANAN (BALLISTICS) 🔥
+    // ==========================================
+    String tempWindage = "0,0 mm";
+    String tempElevation = "0,0 mm";
+    String tempMeanRadius = "0,0 mm";
+    String tempMaxSpread = "0,0 mm";
+
+    if (holes.isNotEmpty &&
+        widget.aiResult['target_center'] != null &&
+        widget.aiResult['pixel_per_mm'] != null) {
+      double scale = MediaQuery.of(context).size.width / 700.0;
+      double centerX =
+          (widget.aiResult['target_center']['x'] as num).toDouble() * scale;
+      double centerY =
+          (widget.aiResult['target_center']['y'] as num).toDouble() * scale;
+      double pixelPerMm =
+          (widget.aiResult['pixel_per_mm'] as num).toDouble() * scale;
+
+      // 1. Cari Titik Tengah Grup (Rata-rata X dan Y dari semua peluru)
+      double sumX = 0;
+      double sumY = 0;
+      for (var hole in holes) {
+        sumX += hole.position.dx;
+        sumY += hole.position.dy;
+      }
+      double groupCenterX = sumX / holes.length;
+      double groupCenterY = sumY / holes.length;
+
+      // 2. Windage & Elevation (Penyimpangan Titik Tengah Grup dari Bulls Eye)
+      double dxPixel = groupCenterX - centerX;
+      double windageMm = dxPixel / pixelPerMm;
+
+      // Di Flutter, Y = 0 ada di atas layar. Jadi dibalik biar Atas (+), Bawah (-)
+      double dyPixel = centerY - groupCenterY;
+      double elevationMm = dyPixel / pixelPerMm;
+
+      // 3. Mean Radius (Rata-rata jarak setiap peluru ke Titik Tengah Grup)
+      double sumRadius = 0;
+      for (var hole in holes) {
+        double hx = hole.position.dx - groupCenterX;
+        double hy = hole.position.dy - groupCenterY;
+        sumRadius += sqrt(hx * hx + hy * hy);
+      }
+      double meanRadiusMm = (sumRadius / holes.length) / pixelPerMm;
+
+      // 4. Max Spread (Jarak terjauh antar 2 peluru mana pun)
+      double maxSpreadPixel = 0;
+      for (int i = 0; i < holes.length; i++) {
+        for (int j = i + 1; j < holes.length; j++) {
+          double dist = (holes[i].position - holes[j].position).distance;
+          if (dist > maxSpreadPixel) maxSpreadPixel = dist;
+        }
+      }
+      double maxSpreadMm = maxSpreadPixel / pixelPerMm;
+
+      // === Formatting Hasil Biar Cantik ===
+      String windDir = windageMm > 0
+          ? "(Kanan)"
+          : windageMm < 0
+          ? "(Kiri)"
+          : "";
+      String elevDir = elevationMm > 0
+          ? "(Atas)"
+          : elevationMm < 0
+          ? "(Bawah)"
+          : "";
+
+      tempWindage =
+          "${windageMm.abs().toStringAsFixed(1).replaceAll('.', ',')} mm $windDir";
+      tempElevation =
+          "${elevationMm.abs().toStringAsFixed(1).replaceAll('.', ',')} mm $elevDir";
+      tempMeanRadius =
+          "${meanRadiusMm.toStringAsFixed(1).replaceAll('.', ',')} mm";
+      tempMaxSpread =
+          "${maxSpreadMm.toStringAsFixed(1).replaceAll('.', ',')} mm";
+    }
+
     setState(() {
       totalScore = double.parse(tempTotal.toStringAsFixed(1));
+      windageStr = tempWindage;
+      elevationStr = tempElevation;
+      meanRadiusStr = tempMeanRadius;
+      maxSpreadStr = tempMaxSpread;
     });
   }
 
@@ -135,7 +223,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
           const Center(child: CircularProgressIndicator(color: primaryColor)),
     );
     try {
-      final ballistic = widget.aiResult['ballistic'] ?? {};
       final url = Uri.parse(
         '${ApiConfig.baseUrl}/match/${widget.matchId}/ranting/${widget.rantingData['_id']}/peserta/${widget.pesertaData['_id']}/sesi/${widget.sesiData['_id']}/update-score',
       );
@@ -146,10 +233,15 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
         body: jsonEncode({
           "score": totalScore.toStringAsFixed(1),
           "jumlahLubang": holes.length,
-          "windage": ballistic['windage'] ?? "0,0 mm",
-          "elevation": ballistic['elevation'] ?? "0,0 mm",
-          "meanRadius": ballistic['meanRadius'] ?? "0,0 mm",
-          "maxSpread": ballistic['maxSpread'] ?? "0,0 mm",
+
+          // ==========================================
+          // MENGIRIM 4 SEKAWANAN KE SERVER 🔥
+          // ==========================================
+          "windage": windageStr,
+          "elevation": elevationStr,
+          "meanRadius": meanRadiusStr,
+          "maxSpread": maxSpreadStr,
+
           "skorDetailArray": finalScores,
         }),
       );
@@ -236,7 +328,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ballistic = widget.aiResult['ballistic'] ?? {};
     bool hasSelectedHole = holes.any((h) => h.isSelected);
     String? base64ProcessedImage = widget.aiResult['processed_image'];
 
@@ -247,14 +338,27 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
 
     double screenPixelPerMm = pixelPerMmFromPython * scale;
     double caliberMm = _getKaliberSizeInMm();
-
     double visualFix = 1.1;
 
     double circleSize = (caliberMm * screenPixelPerMm) * visualFix;
     double halfSize = circleSize / 2;
 
+    String disiplin = widget.aiResult['disiplin'] ?? 'rifle';
+    double aimingMarkDiameterMm = disiplin == 'rifle' ? 30.5 : 59.5;
+    double aimingMarkScreenSize = aimingMarkDiameterMm * screenPixelPerMm;
+    double aimingMarkHalfSize = aimingMarkScreenSize / 2;
+
+    double? centerX;
+    double? centerY;
+    if (widget.aiResult['target_center'] != null) {
+      centerX =
+          (widget.aiResult['target_center']['x'] as num).toDouble() * scale;
+      centerY =
+          (widget.aiResult['target_center']['y'] as num).toDouble() * scale;
+    }
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black, // Background tetap hitam legam lu
       body: SafeArea(
         child: Column(
           children: [
@@ -313,6 +417,44 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
                                     fit: BoxFit.cover,
                                   ),
                           ),
+                          if (centerX != null && centerY != null)
+                            Positioned(
+                              left: centerX - aimingMarkHalfSize,
+                              top: centerY - aimingMarkHalfSize,
+                              child: Container(
+                                width: aimingMarkScreenSize,
+                                height: aimingMarkScreenSize,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.black.withOpacity(0.4),
+                                  border: Border.all(
+                                    color: const Color.fromARGB(
+                                      221,
+                                      186,
+                                      3,
+                                      247,
+                                    ), // Warna Ungu Neon lu tetap aman!
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          // Titik Merah Kecil di Absolut Center (Bentuk Plus Ungu)
+                          if (centerX != null && centerY != null)
+                            Positioned(
+                              left: centerX - 7.5,
+                              top: centerY - 7.5,
+                              child: const Icon(
+                                Icons.add,
+                                color: const Color.fromARGB(
+                                  221,
+                                  186,
+                                  3,
+                                  247,
+                                ), // Warna lu tetap aman!
+                                size: 15,
+                              ),
+                            ),
 
                           ...holes.map((hole) {
                             Color dotColor = Colors.redAccent;
@@ -429,7 +571,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
                 ),
               ),
             ),
-
             Container(
               width: double.infinity,
               color: Colors.black,
@@ -455,9 +596,29 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Text(
-                    "Windage: ${ballistic['windage']}  |  Elevation: ${ballistic['elevation']}",
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+
+                  // ==========================================
+                  // UI BARU UNTUK 4 SEKAWANAN 🔥
+                  // ==========================================
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Windage: $windageStr  |  Elevation: $elevationStr",
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Mean Radius: $meanRadiusStr  |  Max Spread: $maxSpreadStr",
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -34,7 +34,9 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
   int _maxShots = 10;
   bool _hasScannedAtLeastOnce = false;
 
-  String _instructionText = "Please take a photo of the card with white holes";
+  // TEKS INSTRUKSI YANG LEBIH PROFESIONAL
+  String _instructionText =
+      "Harap posisikan kertas target penuh di dalam bingkai hijau";
 
   @override
   void initState() {
@@ -125,7 +127,8 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
       if (response.statusCode == 200) {
         var responseData = jsonDecode(response.body);
         setState(() {
-          _instructionText = "Please take a photo of the card with white holes";
+          _instructionText =
+              "Harap posisikan kertas target penuh di dalam bingkai hijau";
         });
 
         final result = await Navigator.push(
@@ -188,7 +191,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
               const Padding(
                 padding: EdgeInsets.all(15.0),
                 child: Text(
-                  "Scan",
+                  "Scan Target",
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -201,15 +204,32 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                     ? Center(
                         child: AspectRatio(
                           aspectRatio: 1.0,
-                          child: ClipRect(
-                            child: FittedBox(
-                              fit: BoxFit.cover,
-                              child: SizedBox(
-                                width: _controller!.value.previewSize!.height,
-                                height: _controller!.value.previewSize!.width,
-                                child: CameraPreview(_controller!),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              ClipRect(
+                                child: FittedBox(
+                                  fit: BoxFit.cover,
+                                  child: SizedBox(
+                                    width:
+                                        _controller!.value.previewSize!.height,
+                                    height:
+                                        _controller!.value.previewSize!.width,
+                                    child: CameraPreview(_controller!),
+                                  ),
+                                ),
                               ),
-                            ),
+                              Container(
+                                margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.greenAccent.withOpacity(0.8),
+                                    width: 3,
+                                  ),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       )
