@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:ns3_project/components/colors.dart';
 import 'package:ns3_project/components/text_format.dart';
-import 'package:ns3_project/screens/admin_screens/folders/folder_sesi_screen.dart';
 import 'package:ns3_project/service/api_config.dart';
 import 'package:ns3_project/screens/admin_screens/folders/tambah_peserta_screen.dart';
 import 'package:ns3_project/screens/admin_screens/folders/daftar_juri_ranting_screen.dart';
@@ -116,6 +115,7 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
           style: text20PrimaryBold,
         ),
       ),
+
       body: SafeArea(
         child: Column(
           children: [
@@ -199,6 +199,7 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
                 ],
               ),
             ),
+
             Container(
               height: 1,
               color: Colors.grey.shade400,
@@ -222,34 +223,13 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
                               itemCount: listPeserta.length,
                               itemBuilder: (context, index) {
                                 final peserta = listPeserta[index];
-                                int totalScore = 0;
-                                if (peserta['sesiTembakan'] != null) {
-                                  for (var sesi in peserta['sesiTembakan']) {
-                                    if (sesi['score'] != null &&
-                                        sesi['score'] != '-') {
-                                      totalScore +=
-                                          int.tryParse(
-                                            sesi['score'].toString(),
-                                          ) ??
-                                          0;
-                                    }
-                                  }
-                                }
-                                String displayScore = totalScore.toString();
-                                final isScored = totalScore > 0;
+                                final score = peserta['score'];
+                                final isScored =
+                                    score != null && score.toString() != '';
+
                                 return InkWell(
                                   onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            AdminFolderSesiScreen(
-                                              matchId: widget.matchId,
-                                              rantingData: widget.rantingData,
-                                              pesertaData: peserta,
-                                            ),
-                                      ),
-                                    );
+                                    print("Klik: ${peserta['nama']}");
                                   },
                                   child: Container(
                                     margin: const EdgeInsets.only(bottom: 8),
@@ -302,7 +282,7 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
                                                     style: TextStyle(
                                                       fontSize: 14,
                                                       fontWeight:
-                                                          FontWeight.normal,
+                                                          FontWeight.bold,
                                                       color: isScored
                                                           ? Colors.teal
                                                           : darkColor,
@@ -311,30 +291,6 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
                                                 ],
                                               ),
                                               const SizedBox(height: 3),
-                                              // --- UI TEXT SCORE BARU ---
-                                              Row(
-                                                children: [
-                                                  const Text(
-                                                    "Score: ",
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: secondaryColor,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    displayScore,
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w900,
-                                                      color: secondaryColor,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              // --------------------------
                                             ],
                                           ),
                                         ),

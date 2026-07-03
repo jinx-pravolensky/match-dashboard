@@ -104,7 +104,7 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
             }
           });
         }
-}//
+      }
     } catch (e) {
       // No error
     }
@@ -301,23 +301,6 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
                               itemCount: filteredPeserta.length,
                               itemBuilder: (context, index) {
                                 final peserta = filteredPeserta[index];
-
-                                // --- LOGIC PERHITUNGAN SCORE OTOMATIS ---
-                                int totalScore = 0;
-                                if (peserta['sesiTembakan'] != null) {
-                                  for (var sesi in peserta['sesiTembakan']) {
-                                    if (sesi['score'] != null &&
-                                        sesi['score'] != '-') {
-                                      totalScore +=
-                                          int.tryParse(
-                                            sesi['score'].toString(),
-                                          ) ??
-                                          0;
-                                    }
-                                  }
-                                }
-                                String displayScore = totalScore.toString();
-                                final isScored = totalScore > 0;
                                 return InkWell(
                                   onTap: () {
                                     if (isAuthorized) {
@@ -384,17 +367,13 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
                                       vertical: 10,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: !isAuthorized
-                                          ? Colors.grey.shade100
-                                          : (isScored
-                                                ? Colors.teal.shade50
-                                                : backgroundColor),
+                                      color: isAuthorized
+                                          ? backgroundColor
+                                          : Colors.grey.shade100,
                                       border: Border.all(
-                                        color: !isAuthorized
-                                            ? Colors.grey.shade400
-                                            : (isScored
-                                                  ? Colors.teal
-                                                  : primaryColor),
+                                        color: isAuthorized
+                                            ? primaryColor
+                                            : Colors.grey.shade400,
                                         width: 2,
                                       ),
                                       borderRadius: BorderRadius.circular(12),
@@ -411,11 +390,9 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.w900,
                                                   fontSize: 14,
-                                                  color: !isAuthorized
-                                                      ? Colors.grey
-                                                      : (isScored
-                                                            ? Colors.teal
-                                                            : primaryColor),
+                                                  color: isAuthorized
+                                                      ? primaryColor
+                                                      : Colors.grey,
                                                 ),
                                               ),
                                               const SizedBox(height: 3),
@@ -424,11 +401,9 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
                                                   Icon(
                                                     Icons.article_rounded,
                                                     size: 20,
-                                                    color: !isAuthorized
-                                                        ? Colors.grey
-                                                        : (isScored
-                                                              ? Colors.teal
-                                                              : darkColor),
+                                                    color: isAuthorized
+                                                        ? darkColor
+                                                        : Colors.grey,
                                                   ),
                                                   const SizedBox(width: 5),
                                                   Text(
@@ -436,35 +411,10 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
                                                     style: TextStyle(
                                                       fontSize: 14,
                                                       fontWeight:
-                                                          FontWeight.normal,
-                                                      color: !isAuthorized
-                                                          ? Colors.grey
-                                                          : (isScored
-                                                                ? Colors.teal
-                                                                : darkColor),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 3),
-                                              Row(
-                                                children: [
-                                                  const Text(
-                                                    "Score: ",
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight:
                                                           FontWeight.bold,
-                                                      color: secondaryColor,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    displayScore,
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w900,
-                                                      color: secondaryColor,
+                                                      color: isAuthorized
+                                                          ? darkColor
+                                                          : Colors.grey,
                                                     ),
                                                   ),
                                                 ],

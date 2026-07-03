@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-  static const String ipAddress = '192.168.0.105';
+  static const String ipAddress = '192.168.1.4';
   static String get baseUrl {
     if (kIsWeb) {
       return 'http://localhost:3000/api';
