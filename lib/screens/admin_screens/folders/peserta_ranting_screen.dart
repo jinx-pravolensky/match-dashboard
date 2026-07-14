@@ -1,11 +1,11 @@
-import 'dart:convert';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:ns3_project/components/colors.dart';
+import 'package:ns3_project/service/api_config.dart';
 import 'package:ns3_project/components/text_format.dart';
 import 'package:ns3_project/screens/admin_screens/folders/folder_sesi_screen.dart';
-import 'package:ns3_project/service/api_config.dart';
 import 'package:ns3_project/screens/admin_screens/folders/tambah_peserta_screen.dart';
 import 'package:ns3_project/screens/admin_screens/folders/daftar_juri_ranting_screen.dart';
 
@@ -25,7 +25,12 @@ class PesertaRantingScreen extends StatefulWidget {
 
 class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
   List<dynamic> listPeserta = [];
+  List<dynamic> displayPeserta = [];
   bool isLoading = false;
+
+  final TextEditingController _searchController = TextEditingController();
+  String searchQuery = "";
+  String currentSort = "Data Terlama";
 
   Timer? _autoRefreshTimer;
 
@@ -33,6 +38,7 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
   void initState() {
     super.initState();
     listPeserta = widget.rantingData['peserta'] ?? [];
+    _applySearchAndSort();
     _fetchFreshData();
 
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
@@ -43,7 +49,57 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _applySearchAndSort() {
+    List<dynamic> temp = List.from(listPeserta);
+    if (searchQuery.isNotEmpty) {
+      final query = searchQuery.toLowerCase();
+      temp = temp.where((p) {
+        final nama = (p['nama'] ?? '').toString().toLowerCase();
+        final bib = (p['bib'] ?? '').toString().toLowerCase();
+        return nama.contains(query) || bib.contains(query);
+      }).toList();
+    }
+    if (currentSort == 'Data Terbaru') {
+      temp = temp.reversed.toList();
+    } else if (currentSort == 'Nama A-Z') {
+      temp.sort((a, b) {
+        final nameA = (a['nama'] ?? '').toString().toLowerCase();
+        final nameB = (b['nama'] ?? '').toString().toLowerCase();
+        return nameA.compareTo(nameB);
+      });
+    }
+    setState(() {
+      displayPeserta = temp;
+    });
+  }
+
+  PopupMenuItem<String> _buildPopupItem(String title) {
+    final isSelected = currentSort == title;
+    return PopupMenuItem<String>(
+      value: title,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _fetchFreshData() async {
@@ -61,10 +117,10 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
           (r) => r['_id'] == widget.rantingData['_id'],
           orElse: () => null,
         );
-
         if (currentRanting != null && mounted) {
           setState(() {
             listPeserta = currentRanting['peserta'] ?? [];
+            _applySearchAndSort();
           });
         }
       }
@@ -88,10 +144,10 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
           (r) => r['_id'] == widget.rantingData['_id'],
           orElse: () => null,
         );
-
         if (currentRanting != null && mounted) {
           setState(() {
             listPeserta = currentRanting['peserta'] ?? [];
+            _applySearchAndSort();
           });
         }
       }
@@ -136,9 +192,16 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
                             borderRadius: BorderRadius.circular(15),
                             border: Border.all(color: primaryColor, width: 2),
                           ),
-                          child: const TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Cari Nama Peserta...',
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: (value) {
+                              setState(() {
+                                searchQuery = value;
+                                _applySearchAndSort();
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              hintText: 'Cari Nama atau BIB...',
                               hintStyle: text14greyBold,
                               prefixIcon: Icon(
                                 Icons.search,
@@ -153,14 +216,41 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
                         ),
                       ),
                       const SizedBox(width: 5),
-                      const Icon(
-                        Icons.library_books_outlined,
-                        color: primaryColor,
-                        size: 30,
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          splashColor: Colors.transparent,
+                          highlightColor: Colors.transparent,
+                        ),
+                        child: PopupMenuButton<String>(
+                          icon: const Icon(
+                            Icons.library_books_outlined,
+                            color: primaryColor,
+                            size: 35,
+                          ),
+                          color: primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          offset: const Offset(0, 50),
+                          elevation: 5,
+                          onSelected: (String value) {
+                            setState(() {
+                              currentSort = value;
+                              _applySearchAndSort();
+                            });
+                          },
+                          itemBuilder: (BuildContext context) {
+                            return [
+                              _buildPopupItem('Data Terlama'),
+                              _buildPopupItem('Data Terbaru'),
+                              _buildPopupItem('Nama A-Z'),
+                            ];
+                          },
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 10),
                   InkWell(
                     onTap: () {
                       Navigator.push(
@@ -204,9 +294,8 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
               color: Colors.grey.shade400,
               margin: const EdgeInsets.symmetric(horizontal: 30),
             ),
-            const SizedBox(height: 5),
             Expanded(
-              child: isLoading && listPeserta.isEmpty
+              child: isLoading && displayPeserta.isEmpty
                   ? const Center(
                       child: CircularProgressIndicator(color: primaryColor),
                     )
@@ -214,14 +303,14 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
                       color: primaryColor,
                       backgroundColor: Colors.white,
                       onRefresh: _fetchFreshData,
-                      child: listPeserta.isEmpty
+                      child: displayPeserta.isEmpty
                           ? _buildEmptyState()
                           : ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.all(15),
-                              itemCount: listPeserta.length,
+                              itemCount: displayPeserta.length,
                               itemBuilder: (context, index) {
-                                final peserta = listPeserta[index];
+                                final peserta = displayPeserta[index];
                                 int totalScore = 0;
                                 if (peserta['sesiTembakan'] != null) {
                                   for (var sesi in peserta['sesiTembakan']) {
@@ -311,7 +400,6 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
                                                 ],
                                               ),
                                               const SizedBox(height: 3),
-                                              // --- UI TEXT SCORE BARU ---
                                               Row(
                                                 children: [
                                                   const Text(
@@ -334,7 +422,6 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
                                                   ),
                                                 ],
                                               ),
-                                              // --------------------------
                                             ],
                                           ),
                                         ),
@@ -384,7 +471,7 @@ class _PesertaRantingScreenState extends State<PesertaRantingScreen> {
         height: 300,
         alignment: Alignment.center,
         child: const Text(
-          "Belum ada peserta.\nSilahkan tambahkan terlebih dahulu.",
+          "Belum ada peserta atau pencarian tidak ditemukan.\nSilahkan periksa kembali.",
           textAlign: TextAlign.center,
           style: TextStyle(fontWeight: FontWeight.bold),
         ),

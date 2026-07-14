@@ -8,6 +8,7 @@ import 'package:ns3_project/auth/login_screen.dart';
 import 'package:ns3_project/components/colors.dart';
 import 'package:ns3_project/components/text_format.dart';
 import 'package:ns3_project/components/animation/navigator_route.dart';
+import 'package:ns3_project/service/api_config.dart';
 
 class ComponentFormRegister extends StatefulWidget {
   const ComponentFormRegister({super.key});
@@ -15,6 +16,7 @@ class ComponentFormRegister extends StatefulWidget {
   @override
   State<ComponentFormRegister> createState() => _ComponentFormRegisterState();
 }
+
 class _ComponentFormRegisterState extends State<ComponentFormRegister> {
   final _formKey = GlobalKey<FormState>();
 
@@ -34,7 +36,7 @@ class _ComponentFormRegisterState extends State<ComponentFormRegister> {
         builder: (context) =>
             const Center(child: CircularProgressIndicator(color: Colors.teal)),
       );
-      final url = Uri.parse('http://10.0.2.2:3000/api/auth/register');
+      final url = Uri.parse('${ApiConfig.baseUrl}/auth/register');
       try {
         final response = await http.post(
           url,
@@ -52,7 +54,7 @@ class _ComponentFormRegisterState extends State<ComponentFormRegister> {
             dialogType: DialogType.success,
             animType: AnimType.scale,
             title: 'DAFTAR BERHASIL',
-            desc: 'Akun berhasil dibuat! Silahkan masuk.',
+            desc: 'Akun berhasil terdaftar! Masuk Akun',
             btnOkText: 'LOGIN SEKARANG',
             btnOkColor: Colors.teal,
             btnOkOnPress: () {

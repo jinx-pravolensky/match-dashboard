@@ -21,31 +21,28 @@ class ShotHole {
   });
 }
 
-class PreviewScanScreen extends StatefulWidget {
+class ViewerPreviewScanScreen extends StatefulWidget {
   final String imagePath;
+  final Map<String, dynamic> trainingData;
   final Map<String, dynamic> sesiData;
-  final Map<String, dynamic> rantingData;
-  final Map<String, dynamic> pesertaData;
-  final String matchId;
   final int selectedShots;
   final Map<String, dynamic> aiResult;
 
-  const PreviewScanScreen({
+  const ViewerPreviewScanScreen({
     super.key,
     required this.imagePath,
+    required this.trainingData,
     required this.sesiData,
-    required this.rantingData,
-    required this.pesertaData,
-    required this.matchId,
     required this.selectedShots,
     required this.aiResult,
   });
 
   @override
-  State<PreviewScanScreen> createState() => _PreviewScanScreenState();
+  State<ViewerPreviewScanScreen> createState() =>
+      _ViewerPreviewScanScreenState();
 }
 
-class _PreviewScanScreenState extends State<PreviewScanScreen> {
+class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
   List<ShotHole> holes = [];
   double totalScore = 0.0;
   ShotHole? _draggingHole;
@@ -67,6 +64,7 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
 
   void _ekstrakDataAI() {
     double screenWidth = MediaQuery.of(context).size.width;
+    // PENTING: Python mengeluarkan gambar 700x700
     double scale = screenWidth / 700.0;
 
     List<dynamic> rawHoles = widget.aiResult['holes'] ?? [];
@@ -104,6 +102,7 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
           (widget.aiResult['target_center']['y'] as num).toDouble() * scale;
       double pixelPerMm =
           (widget.aiResult['pixel_per_mm'] as num).toDouble() * scale;
+
       double sumX = 0;
       double sumY = 0;
       for (var hole in holes) {
@@ -113,15 +112,12 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
       double groupCenterX = sumX / holes.length;
       double groupCenterY = sumY / holes.length;
 
-      // 2. Windage & Elevation (Penyimpangan Titik Tengah Grup dari Bulls Eye)
       double dxPixel = groupCenterX - centerX;
       double windageMm = dxPixel / pixelPerMm;
 
-      // Di Flutter, Y = 0 ada di atas layar. Jadi dibalik biar Atas (+), Bawah (-)
       double dyPixel = centerY - groupCenterY;
       double elevationMm = dyPixel / pixelPerMm;
 
-      // 3. Mean Radius (Rata-rata jarak setiap peluru ke Titik Tengah Grup)
       double sumRadius = 0;
       for (var hole in holes) {
         double hx = hole.position.dx - groupCenterX;
@@ -130,7 +126,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
       }
       double meanRadiusMm = (sumRadius / holes.length) / pixelPerMm;
 
-      // 4. Max Spread (Jarak terjauh antar 2 peluru mana pun)
       double maxSpreadPixel = 0;
       for (int i = 0; i < holes.length; i++) {
         for (int j = i + 1; j < holes.length; j++) {
@@ -139,6 +134,7 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
         }
       }
       double maxSpreadMm = maxSpreadPixel / pixelPerMm;
+
       String windDir = windageMm > 0
           ? "(Kanan)"
           : windageMm < 0
@@ -180,8 +176,12 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
           (widget.aiResult['target_center']['y'] as num).toDouble() * scale;
       double pixelPerMm =
           (widget.aiResult['pixel_per_mm'] as num).toDouble() * scale;
+
       String disiplin = widget.aiResult['disiplin'] ?? 'rifle';
-      bool isDecimal = widget.rantingData['skorDesimal'] ?? false;
+      bool isDecimal =
+          widget.trainingData['skorDesimal'] ??
+          false; // AMBIL DARI TRAINING DATA USER
+
       double dx = hole.position.dx - centerX;
       double dy = hole.position.dy - centerY;
       double distancePixel = sqrt(dx * dx + dy * dy);
@@ -216,24 +216,24 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
     );
     try {
       final url = Uri.parse(
-        '${ApiConfig.baseUrl}/match/${widget.matchId}/ranting/${widget.rantingData['_id']}/peserta/${widget.pesertaData['_id']}/sesi/${widget.sesiData['_id']}/update-score',
+        '${ApiConfig.baseUrl}/training/${widget.trainingData['_id']}/sesi/${widget.sesiData['_id']}/update-score',
       );
       List<double> finalScores = holes.map((h) => h.score).toList();
       final response = await http.put(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          "score": totalScore.toStringAsFixed(1),
+          "score": formatScore(totalScore), // Sesuai desimal/tidak
           "jumlahLubang": holes.length,
           "windage": windageStr,
           "elevation": elevationStr,
           "meanRadius": meanRadiusStr,
           "maxSpread": maxSpreadStr,
-
           "skorDetailArray": finalScores,
         }),
       );
       Navigator.pop(context);
+
       if (response.statusCode == 200) {
         if (isNext) {
           AwesomeDialog(
@@ -274,21 +274,14 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
   }
 
   String formatScore(double score) {
-    return score == score.toInt() ? score.toInt().toString() : score.toString();
+    bool isDecimal = widget.trainingData['skorDesimal'] ?? false;
+    return isDecimal ? score.toStringAsFixed(1) : score.toInt().toString();
   }
 
   double _getKaliberSizeInMm() {
-    String kaliberStr =
-        (widget.rantingData['amunisi'] ??
-                widget.rantingData['kaliberAmunisi'] ??
-                widget.rantingData['kaliber_amunisi'] ??
-                widget.sesiData['kaliberAmunisi'] ??
-                widget.sesiData['kaliber_amunisi'] ??
-                widget.pesertaData['kaliberAmunisi'] ??
-                widget.pesertaData['kaliber_amunisi'] ??
-                '4,5')
-            .toString()
-            .toLowerCase();
+    String kaliberStr = (widget.trainingData['amunisi'] ?? '4,5')
+        .toString()
+        .toLowerCase();
     if (kaliberStr.contains('6,3') || kaliberStr.contains('.25')) return 10.3;
     if (kaliberStr.contains('4,5') || kaliberStr.contains('.177')) return 4.5;
     if (kaliberStr.contains('5,6') || kaliberStr.contains('.22')) return 5.6;
@@ -310,7 +303,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
       return 9.1;
     if (kaliberStr.contains('.40')) return 10.17;
     if (kaliberStr.contains('.44') || kaliberStr.contains('.45')) return 11.43;
-
     return 4.5;
   }
 
@@ -319,6 +311,7 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
     bool hasSelectedHole = holes.any((h) => h.isSelected);
     String? base64ProcessedImage = widget.aiResult['processed_image'];
     double scale = MediaQuery.of(context).size.width / 700.0;
+
     double pixelPerMmFromPython =
         (widget.aiResult['pixel_per_mm'] as num?)?.toDouble() ?? 15.0;
     double screenPixelPerMm = pixelPerMmFromPython * scale;
@@ -369,6 +362,17 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
                   });
                 },
                 onDoubleTapDown: (TapDownDetails details) {
+                  if (holes.length >= widget.selectedShots) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          "Batas maksimum lubang tembakan tercapai!",
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
                   setState(() {
                     for (var h in holes) {
                       h.isSelected = false;
@@ -402,6 +406,7 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
                                     fit: BoxFit.cover,
                                   ),
                           ),
+                          // LINGKARAN UNGU BLACK AIMING MARK SEPERTI PUNYA JURI
                           if (centerX != null && centerY != null)
                             Positioned(
                               left: centerX - aimingMarkHalfSize,
@@ -418,20 +423,25 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
                                       186,
                                       3,
                                       247,
-                                    ), // Warna Ungu Neon lu tetap aman!
+                                    ), // Warna Ungu Neon
                                     width: 2,
                                   ),
                                 ),
                               ),
                             ),
-                          // Titik Merah Kecil di Absolut Center (Bentuk Plus Ungu)
+                          // TANDA PLUS UNGU DI TENGAH
                           if (centerX != null && centerY != null)
                             Positioned(
                               left: centerX - 7.5,
                               top: centerY - 7.5,
                               child: const Icon(
                                 Icons.add,
-                                color: Color.fromARGB(221, 186, 3, 247),
+                                color: Color.fromARGB(
+                                  221,
+                                  186,
+                                  3,
+                                  247,
+                                ), // Warna Ungu Neon
                                 size: 15,
                               ),
                             ),
@@ -488,6 +498,7 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
                               ),
                             );
                           }).toList(),
+                          // MAGNIFIER KACA PEMBESAR
                           if (_draggingHole != null)
                             Positioned(
                               left: _draggingHole!.position.dx - 65,

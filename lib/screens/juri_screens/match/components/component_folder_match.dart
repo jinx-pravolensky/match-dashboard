@@ -278,7 +278,7 @@ class _ComponentFolderDataMatchState extends State<ComponentFolderDataMatch> {
                       itemBuilder: (context, index) {
                         final match = listMatch[index];
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 15),
+                          margin: const EdgeInsets.only(bottom: 10),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(16),

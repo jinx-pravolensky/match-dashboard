@@ -5,27 +5,21 @@ import 'package:http/http.dart' as http;
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:ns3_project/components/colors.dart';
 import 'package:ns3_project/components/text_format.dart';
-import 'package:ns3_project/screens/juri_screens/match/detail_sesi_screen.dart';
-import 'package:ns3_project/screens/juri_screens/match/tambah_sesi_screen.dart';
+import 'package:ns3_project/screens/viewers/folders/detail_sesi_screen.dart';
+import 'package:ns3_project/screens/viewers/folders/tambah_sesi_screen.dart';
 import 'package:ns3_project/service/api_config.dart';
 
-class ComponentFolderSesi extends StatefulWidget {
-  final String matchId;
-  final Map<String, dynamic> rantingData;
-  final Map<String, dynamic> pesertaData;
+class ComponentFolderSesiViewer extends StatefulWidget {
+  final Map<String, dynamic> trainingData;
 
-  const ComponentFolderSesi({
-    super.key,
-    required this.matchId,
-    required this.rantingData,
-    required this.pesertaData,
-  });
+  const ComponentFolderSesiViewer({super.key, required this.trainingData});
 
   @override
-  State<ComponentFolderSesi> createState() => _ComponentFolderSesiState();
+  State<ComponentFolderSesiViewer> createState() =>
+      _ComponentFolderSesiViewerState();
 }
 
-class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
+class _ComponentFolderSesiViewerState extends State<ComponentFolderSesiViewer> {
   List<dynamic> listSesi = [];
   bool isLoading = false;
   Timer? _autoRefreshTimer;
@@ -33,8 +27,7 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
   @override
   void initState() {
     super.initState();
-
-    listSesi = widget.pesertaData['sesiTembakan'] ?? [];
+    listSesi = widget.trainingData['sesiTembakan'] ?? [];
     _fetchFreshData();
 
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
@@ -52,29 +45,17 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
     if (!mounted) return;
     setState(() => isLoading = true);
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/match/${widget.matchId}');
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/training/${widget.trainingData['_id']}',
+      );
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final rantings = data['ranting'] as List;
-        final currentRanting = rantings.firstWhere(
-          (r) => r['_id'] == widget.rantingData['_id'],
-          orElse: () => null,
-        );
-
-        if (currentRanting != null) {
-          final pesertas = currentRanting['peserta'] as List;
-          final currentPeserta = pesertas.firstWhere(
-            (p) => p['_id'] == widget.pesertaData['_id'],
-            orElse: () => null,
-          );
-
-          if (currentPeserta != null && mounted) {
-            setState(() {
-              listSesi = currentPeserta['sesiTembakan'] ?? [];
-            });
-          }
+        if (mounted) {
+          setState(() {
+            listSesi = data['sesiTembakan'] ?? [];
+          });
         }
       }
     } catch (e) {
@@ -86,33 +67,54 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
 
   Future<void> _silentFetchData() async {
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/match/${widget.matchId}');
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/training/${widget.trainingData['_id']}',
+      );
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final rantings = data['ranting'] as List;
-        final currentRanting = rantings.firstWhere(
-          (r) => r['_id'] == widget.rantingData['_id'],
-          orElse: () => null,
-        );
-
-        if (currentRanting != null) {
-          final pesertas = currentRanting['peserta'] as List;
-          final currentPeserta = pesertas.firstWhere(
-            (p) => p['_id'] == widget.pesertaData['_id'],
-            orElse: () => null,
-          );
-
-          if (currentPeserta != null && mounted) {
-            setState(() {
-              listSesi = currentPeserta['sesiTembakan'] ?? [];
-            });
-          }
+        if (mounted) {
+          setState(() {
+            listSesi = data['sesiTembakan'] ?? [];
+          });
         }
       }
     } catch (e) {
       // No Error
+    }
+  }
+
+  Future<void> _goToTambahSesi() async {
+    int maxSesi = widget.trainingData['seriesPerSession'] ?? 0;
+    if (listSesi.length >= maxSesi) {
+      AwesomeDialog(
+        context: context,
+        dialogType: DialogType.infoReverse,
+        animType: AnimType.scale,
+        title: 'Batas Sesi Tercapai!',
+        desc:
+            'Latihan ini telah mencapai maksimal $maxSesi rangkaian tembakan (Series).',
+        btnOkColor: primaryColor,
+        btnOkText: 'Mengerti',
+        btnOkOnPress: () {},
+        dismissOnTouchOutside: false,
+        dismissOnBackKeyPress: false,
+      ).show();
+      return;
+    }
+    int nextSesiNumber = listSesi.length + 1;
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ViewerTambahSesiScreen(
+          trainingData: widget.trainingData,
+          sesiNumber: nextSesiNumber,
+        ),
+      ),
+    );
+    if (result == true) {
+      _fetchFreshData();
     }
   }
 
@@ -131,11 +133,9 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
         child: CircularProgressIndicator(color: primaryColor),
       );
     }
-
     if (listSesi.isEmpty) {
       return _buildEmptyState();
     }
-
     return _buildFilledState();
   }
 
@@ -153,7 +153,7 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                "Belum ada Sesi Kegiatan untuk\nPeserta ini.",
+                "Belum ada Sesi Latihan.\nSilahkan tambahkan Sesi baru.",
                 textAlign: TextAlign.center,
                 style: text14PrimaryBold,
               ),
@@ -182,8 +182,15 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Column(
             children: [
-              Text(widget.pesertaData['nama'] ?? '-', style: text16PrimaryBold),
-              Text(widget.pesertaData['bib'] ?? '-', style: text14greyBold),
+              Text(
+                "${widget.trainingData['kategoriUtama']} - ${widget.trainingData['subKategori']}",
+                style: text16PrimaryBold,
+              ),
+              const SizedBox(height: 5),
+              Text(
+                "Amunisi: ${widget.trainingData['amunisi']}",
+                style: text14greyBold,
+              ),
             ],
           ),
         ),
@@ -205,29 +212,32 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => DetailSesiScreen(
-                          matchId: widget.matchId,
-                          rantingData: widget.rantingData,
-                          pesertaData: widget.pesertaData,
+                        builder: (context) => ViewerDetailSesiScreen(
+                          trainingData: widget.trainingData,
                           sesiData: sesi,
                         ),
                       ),
                     );
                     _fetchFreshData();
+                    print("Buka Sesi: ${sesi['namaSesi']}");
                   },
                   child: Container(
-                    margin: const EdgeInsets.only(bottom: 12),
+                    margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 15,
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: backgroundColor,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(15),
-                      border: Border.all(
-                        color: const Color(0xFF7A7979),
-                        width: 2,
-                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: Border.all(color: Colors.grey.shade300, width: 2),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,7 +266,7 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
                                 style: text14WhiteBold,
                               ),
                             ),
-                            const SizedBox(width: 13),
+                            const SizedBox(width: 10),
                             Text(
                               sesi['tanggal'] ?? '-',
                               style: text14PrimaryBold,
@@ -264,7 +274,8 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        Container(height: 1, color: const Color(0xFFABABAB)),
+                        Container(height: 1, color: Colors.grey.shade300),
+                        const SizedBox(height: 10),
                         Row(
                           children: [
                             Container(
@@ -292,68 +303,12 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
                               onPressed: () {
                                 AwesomeDialog(
                                   context: context,
-                                  dialogType: DialogType.warning,
+                                  dialogType: DialogType.info,
                                   animType: AnimType.scale,
-                                  title: 'Hapus Sesi?',
-                                  desc:
-                                      'Yakin ingin menghapus ${sesi['namaSesi']}?\nData skor dan hasil scan akan \nhilang permanen.',
-                                  btnCancelOnPress: () {},
-                                  btnCancelText: 'Batal',
-                                  btnOkColor: redColor,
-                                  btnOkText: 'Hapus',
-                                  btnCancelColor: Color(0xFF547A95),
-                                  btnOkOnPress: () async {
-                                    showDialog(
-                                      context: context,
-                                      barrierDismissible: false,
-                                      builder: (context) => const Center(
-                                        child: CircularProgressIndicator(
-                                          color: primaryColor,
-                                        ),
-                                      ),
-                                    );
-                                    try {
-                                      final url = Uri.parse(
-                                        '${ApiConfig.baseUrl}/match/${widget.matchId}/ranting/${widget.rantingData['_id']}/peserta/${widget.pesertaData['_id']}/sesi/${sesi['_id']}',
-                                      );
-                                      final response = await http.delete(url);
-                                      Navigator.pop(context);
-                                      if (response.statusCode == 200) {
-                                        AwesomeDialog(
-                                          context: context,
-                                          dialogType: DialogType.success,
-                                          animType: AnimType.scale,
-                                          title: 'Berhasil',
-                                          desc:
-                                              'Sesi Tembakan berhasil dihapus!',
-                                          btnOkColor: primaryColor,
-                                          btnOkOnPress: () {},
-                                        ).show();
-                                        _fetchFreshData();
-                                      } else {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              "Gagal menghapus sesi",
-                                            ),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      Navigator.pop(context);
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text("Error: $e"),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                    }
-                                  },
+                                  title: 'Coming Soon',
+                                  desc: 'Fitur Hapus Sesi Sedang Dikembangkan',
+                                  btnOkColor: primaryColor,
+                                  btnOkOnPress: () {},
                                 ).show();
                               },
                               icon: const Icon(
@@ -363,10 +318,6 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
                               ),
                             ),
                           ],
-                        ),
-                        Text(
-                          "Juri: ${sesi['juriName'] ?? '-'}",
-                          style: text14greyBold,
                         ),
                       ],
                     ),
@@ -388,50 +339,12 @@ class _ComponentFolderSesiState extends State<ComponentFolderSesi> {
                   color: primaryColor,
                   borderRadius: BorderRadius.circular(15),
                 ),
-                child: const Icon(Icons.add, color: Colors.white),
+                child: const Icon(Icons.add, color: Colors.white, size: 30),
               ),
             ),
           ),
         ),
       ],
     );
-  }
-
-  Future<void> _goToTambahSesi() async {
-    int maxSesi = widget.rantingData['seriesPerSession'] ?? 0;
-
-    if (listSesi.length >= maxSesi) {
-      AwesomeDialog(
-        context: context,
-        dialogType: DialogType.infoReverse,
-        animType: AnimType.scale,
-        title: 'Batas Sesi Tercapai!',
-        desc: 'Peserta ini telah mencapai maksimal $maxSesi sesi.',
-        btnOkColor: primaryColor,
-        btnOkText: 'Mengerti',
-        btnOkOnPress: () {},
-        dismissOnTouchOutside: false,
-        dismissOnBackKeyPress: false,
-      ).show();
-      return;
-    }
-
-    int nextSesiNumber = listSesi.length + 1;
-
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TambahSesiScreen(
-          matchId: widget.matchId,
-          rantingData: widget.rantingData,
-          pesertaData: widget.pesertaData,
-          sesiNumber: nextSesiNumber,
-        ),
-      ),
-    );
-
-    if (result == true) {
-      _fetchFreshData();
-    }
   }
 }

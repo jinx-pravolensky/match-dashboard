@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ns3_project/components/colors.dart';
 import 'package:ns3_project/components/text_format.dart';
 import 'package:ns3_project/service/api_config.dart';
-
 class ComponenDetailAkunJuri extends StatefulWidget {
   const ComponenDetailAkunJuri({super.key});
 

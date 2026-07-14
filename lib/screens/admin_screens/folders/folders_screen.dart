@@ -12,8 +12,8 @@ class FoldersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     SizeConfig().init(context);
     return const Scaffold(
-      backgroundColor: Colors.white,
       body: BodyFoldersScreen(),
+      backgroundColor: Colors.white,
       resizeToAvoidBottomInset: false,
     );
   }

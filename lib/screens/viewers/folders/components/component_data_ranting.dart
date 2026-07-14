@@ -2,22 +2,24 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:ns3_project/screens/viewers/folders/folder_sesi_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ns3_project/components/colors.dart';
 import 'package:ns3_project/components/text_format.dart';
 import 'package:ns3_project/service/api_config.dart';
 import 'package:ns3_project/data/data_ranting.dart';
-import 'package:ns3_project/screens/admin_screens/folders/pilih_ranting_screen.dart';
-import 'package:ns3_project/screens/admin_screens/folders/peserta_ranting_screen.dart';
+import 'package:ns3_project/screens/viewers/folders/tambah_ranting_screen.dart';
 
-class ComponentFolderRanting extends StatefulWidget {
-  final String matchId;
-  const ComponentFolderRanting({super.key, required this.matchId});
+class ComponentDataRantingViewer extends StatefulWidget {
+  const ComponentDataRantingViewer({super.key});
 
   @override
-  State<ComponentFolderRanting> createState() => _ComponentFolderRantingState();
+  State<ComponentDataRantingViewer> createState() =>
+      _ComponentDataRantingViewerState();
 }
 
-class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
+class _ComponentDataRantingViewerState
+    extends State<ComponentDataRantingViewer> {
   List<dynamic> listRanting = [];
   List<dynamic> filteredRanting = [];
   bool isLoading = true;
@@ -28,7 +30,7 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
   @override
   void initState() {
     super.initState();
-    fetchMatchData();
+    fetchTrainingData();
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _silentFetchData();
     });
@@ -41,16 +43,21 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
     super.dispose();
   }
 
-  Future<void> fetchMatchData() async {
+  Future<void> fetchTrainingData() async {
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/match/${widget.matchId}');
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+
+      if (userId == null) return;
+
+      final url = Uri.parse('${ApiConfig.baseUrl}/training/user/$userId');
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (mounted) {
           setState(() {
-            listRanting = data['ranting'] ?? [];
+            listRanting = data;
             if (searchController.text.isEmpty) {
               filteredRanting = listRanting;
             } else {
@@ -69,14 +76,19 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
 
   Future<void> _silentFetchData() async {
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/match/${widget.matchId}');
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+
+      if (userId == null) return;
+
+      final url = Uri.parse('${ApiConfig.baseUrl}/training/user/$userId');
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (mounted) {
           setState(() {
-            listRanting = data['ranting'] ?? [];
+            listRanting = data;
             if (searchController.text.isEmpty) {
               filteredRanting = listRanting;
             } else {
@@ -86,7 +98,7 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
         }
       }
     } catch (e) {
-      // Abaikan error
+      // Abaikan error untuk silent fetch
     }
   }
 
@@ -119,7 +131,7 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
     return RefreshIndicator(
       color: primaryColor,
       backgroundColor: Colors.white,
-      onRefresh: fetchMatchData,
+      onRefresh: fetchTrainingData,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Container(
@@ -129,7 +141,7 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                "Belum ada Data,\nSilahkan tambahkan Ranting\nterlebih dahulu.",
+                "Folder Ranting Kosong,\nSilahkan buat Folder Ranting\nterlebih dahulu.",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -154,18 +166,17 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          PilihRantingScreen(matchId: widget.matchId),
+                      builder: (context) => const ViewerTambahRanting(),
                     ),
                   );
-                  fetchMatchData();
+                  fetchTrainingData();
                 },
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(width: 8),
                     Icon(Icons.add, color: Colors.white),
-                    Text("Tambahkan Ranting", style: text14WhiteBold),
+                    Text("Buat Folder Latihan", style: text14WhiteBold),
                   ],
                 ),
               ),
@@ -184,8 +195,13 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Daftar Ranting", style: text18PrimaryBold),
-              const SizedBox(height: 15),
+              Container(
+                margin: const EdgeInsets.only(top: 10, bottom: 10),
+                child: const Text(
+                  "Data Folder Ranting",
+                  style: text16PrimaryBold,
+                ),
+              ),
               Row(
                 children: [
                   Expanded(
@@ -193,14 +209,14 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
                       height: 45,
                       decoration: BoxDecoration(
                         color: backgroundColor,
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: primaryColor, width: 2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: primaryColor, width: 1),
                       ),
                       child: TextField(
                         controller: searchController,
                         onChanged: onSearch,
                         decoration: const InputDecoration(
-                          hintText: 'Cari Nama Ranting...',
+                          hintText: 'Cari Ranting...',
                           hintStyle: text14greyBold,
                           prefixIcon: Icon(Icons.search, color: primaryColor),
                           border: InputBorder.none,
@@ -213,7 +229,7 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
                   IconButton(
                     onPressed: () {},
                     icon: const Icon(
-                      Icons.library_books_outlined,
+                      Icons.library_books_rounded,
                       color: primaryColor,
                       size: 35,
                     ),
@@ -225,7 +241,7 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
                 child: RefreshIndicator(
                   color: primaryColor,
                   backgroundColor: Colors.white,
-                  onRefresh: fetchMatchData,
+                  onRefresh: fetchTrainingData,
                   child: filteredRanting.isEmpty
                       ? SingleChildScrollView(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -244,6 +260,7 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
                           itemBuilder: (context, index) {
                             final ranting = filteredRanting[index];
 
+                            // Mengambil data logo dan gambar dari kamus data_ranting
                             final kamusData = daftarKamusRanting.firstWhere(
                               (k) =>
                                   k['sub_kategori'] == ranting['subKategori'] &&
@@ -251,27 +268,38 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
                                       ranting['kategoriUtama'],
                               orElse: () => daftarKamusRanting[0],
                             );
+                            final int totalSesi =
+                                (ranting['sesiTembakan'] as List?)?.length ?? 0;
                             return InkWell(
-                              onTap: () {
-                                Navigator.push(
+                              onTap: () async {
+                                await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => PesertaRantingScreen(
-                                      matchId: widget.matchId,
-                                      rantingData: ranting,
-                                    ),
+                                    builder: (context) =>
+                                        ViewerFolderSesiScreen(
+                                          trainingData: ranting,
+                                        ),
                                   ),
                                 );
+                                fetchTrainingData();
+                                print("Buka Folder Latihan: ${ranting['_id']}");
                               },
                               borderRadius: BorderRadius.circular(15),
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 10),
                                 padding: const EdgeInsets.all(15),
                                 decoration: BoxDecoration(
-                                  color: backgroundColor,
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(15),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.grey.withOpacity(0.15),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                   border: Border.all(
-                                    color: primaryColor,
+                                    color: Colors.grey.shade300,
                                     width: 2,
                                   ),
                                 ),
@@ -292,15 +320,16 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
                                         ),
                                         const Spacer(),
                                         const Icon(
-                                          Icons.info_outline,
+                                          Icons.arrow_forward_ios_rounded,
                                           color: secondaryColor,
+                                          size: 18,
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 12),
                                     Row(
                                       crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                          CrossAxisAlignment.center,
                                       children: [
                                         ClipRRect(
                                           borderRadius: BorderRadius.circular(
@@ -331,23 +360,43 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
                                               Text(
                                                 ranting['subKategori'],
                                                 style: text14PrimaryBold,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                               const SizedBox(height: 5),
                                               Text(
-                                                'Ajang ${ranting['kategoriPeserta']}',
+                                                '${ranting['amunisi']}',
                                                 style: const TextStyle(
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.bold,
                                                   color: Colors.grey,
                                                 ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                               const SizedBox(height: 5),
-                                              Text(
-                                                "${(ranting['juriIds'] as List).length} Juri Pertandingan",
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.grey,
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 3,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.teal.shade50,
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                    color: Colors.teal,
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  "$totalSesi Sesi Latihan Tersimpan",
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.teal,
+                                                  ),
                                                 ),
                                               ),
                                             ],
@@ -367,19 +416,18 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
           ),
         ),
         Positioned(
-          bottom: 50,
-          right: 35,
+          bottom: 25,
+          right: 25,
           child: FloatingActionButton(
             backgroundColor: primaryColor,
             onPressed: () async {
               await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      PilihRantingScreen(matchId: widget.matchId),
+                  builder: (context) => const ViewerTambahRanting(),
                 ),
               );
-              fetchMatchData();
+              fetchTrainingData();
             },
             child: const Icon(Icons.add_rounded, color: Colors.white, size: 35),
           ),
