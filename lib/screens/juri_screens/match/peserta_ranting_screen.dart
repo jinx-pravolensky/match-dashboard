@@ -32,6 +32,7 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
   List<dynamic> filteredPeserta = [];
 
   final TextEditingController searchController = TextEditingController();
+  String currentSort = "Data Terlama";
 
   Timer? _autoRefreshTimer;
 
@@ -39,7 +40,6 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
   void initState() {
     super.initState();
     listPeserta = widget.rantingData['peserta'] ?? [];
-    filteredPeserta = listPeserta;
 
     _checkAuthorization();
     _fetchFreshData();
@@ -54,6 +54,58 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
     _autoRefreshTimer?.cancel();
     searchController.dispose();
     super.dispose();
+  }
+
+  void _applySearchAndSort() {
+    List<dynamic> temp = List.from(listPeserta);
+
+    if (searchController.text.isNotEmpty) {
+      final query = searchController.text.toLowerCase();
+      temp = temp.where((peserta) {
+        final nama = (peserta['nama'] ?? '').toString().toLowerCase();
+        final bib = (peserta['bib'] ?? '').toString().toLowerCase();
+        return nama.contains(query) || bib.contains(query);
+      }).toList();
+    }
+
+    if (currentSort == 'Data Terbaru') {
+      temp = temp.reversed.toList();
+    } else if (currentSort == 'Nama A-Z') {
+      temp.sort((a, b) {
+        final nameA = (a['nama'] ?? '').toString().toLowerCase();
+        final nameB = (b['nama'] ?? '').toString().toLowerCase();
+        return nameA.compareTo(nameB);
+      });
+    }
+
+    setState(() {
+      filteredPeserta = temp;
+    });
+  }
+
+  PopupMenuItem<String> _buildPopupItem(String title) {
+    final isSelected = currentSort == title;
+    return PopupMenuItem<String>(
+      value: title,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _checkAuthorization() async {
@@ -97,17 +149,11 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
         if (currentRanting != null && mounted) {
           setState(() {
             listPeserta = currentRanting['peserta'] ?? [];
-            if (searchController.text.isEmpty) {
-              filteredPeserta = listPeserta;
-            } else {
-              onSearch(searchController.text);
-            }
+            _applySearchAndSort();
           });
         }
-}//
-    } catch (e) {
-      // No error
-    }
+      }
+    } catch (e) {}
   }
 
   Future<void> _silentFetchData() async {
@@ -127,27 +173,11 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
         if (currentRanting != null && mounted) {
           setState(() {
             listPeserta = currentRanting['peserta'] ?? [];
-            if (searchController.text.isEmpty) {
-              filteredPeserta = listPeserta;
-            } else {
-              onSearch(searchController.text);
-            }
+            _applySearchAndSort();
           });
         }
       }
-    } catch (e) {
-      // No error
-    }
-  }
-
-  void onSearch(String value) {
-    final query = value.toLowerCase();
-    setState(() {
-      filteredPeserta = listPeserta.where((peserta) {
-        final nama = (peserta['nama'] ?? '').toString().toLowerCase();
-        return nama.contains(query);
-      }).toList();
-    });
+    } catch (e) {}
   }
 
   @override
@@ -203,10 +233,12 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
                                 ),
                                 child: TextField(
                                   controller: searchController,
-                                  onChanged: onSearch,
+                                  onChanged: (value) {
+                                    _applySearchAndSort();
+                                  },
                                   decoration: const InputDecoration(
                                     hintStyle: text14greyBold,
-                                    hintText: 'Cari Nama Peserta...',
+                                    hintText: 'Cari Nama atau BIB...',
                                     prefixIcon: Icon(
                                       Icons.search,
                                       color: primaryColor,
@@ -221,12 +253,36 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
                             ),
                             Container(
                               margin: const EdgeInsets.only(left: 5),
-                              child: const IconButton(
-                                onPressed: null,
-                                icon: Icon(
-                                  Icons.library_books_outlined,
+                              child: Theme(
+                                data: Theme.of(context).copyWith(
+                                  splashColor: Colors.transparent,
+                                  highlightColor: Colors.transparent,
+                                ),
+                                child: PopupMenuButton<String>(
+                                  icon: const Icon(
+                                    Icons.library_books_outlined,
+                                    color: primaryColor,
+                                    size: 35,
+                                  ),
                                   color: primaryColor,
-                                  size: 35,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                  offset: const Offset(0, 50),
+                                  elevation: 5,
+                                  onSelected: (String value) {
+                                    setState(() {
+                                      currentSort = value;
+                                      _applySearchAndSort();
+                                    });
+                                  },
+                                  itemBuilder: (BuildContext context) {
+                                    return [
+                                      _buildPopupItem('Data Terlama'),
+                                      _buildPopupItem('Data Terbaru'),
+                                      _buildPopupItem('Nama A-Z'),
+                                    ];
+                                  },
                                 ),
                               ),
                             ),
@@ -285,7 +341,6 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
                     margin: const EdgeInsets.symmetric(horizontal: 30),
                   ),
                   const SizedBox(height: 5),
-
                   Expanded(
                     child: RefreshIndicator(
                       color: primaryColor,
@@ -302,7 +357,6 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
                               itemBuilder: (context, index) {
                                 final peserta = filteredPeserta[index];
 
-                                // --- LOGIC PERHITUNGAN SCORE OTOMATIS ---
                                 int totalScore = 0;
                                 if (peserta['sesiTembakan'] != null) {
                                   for (var sesi in peserta['sesiTembakan']) {
@@ -533,7 +587,7 @@ class _PesertaRantingJuriScreenState extends State<PesertaRantingJuriScreen> {
             Icon(Icons.search_off, size: 40, color: Colors.grey),
             SizedBox(height: 10),
             Text(
-              "Nama tidak ditemukan",
+              "Peserta tidak ditemukan",
               style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
             ),
           ],

@@ -81,7 +81,7 @@ class _ComponentFormLoginState extends State<ComponentFormLogin> {
 
         _showErrorDialog(
           'KONEKSI GAGAL',
-          "Gagal terhubung ke server. Cek internet atau server lu Bro!",
+          "Gagal terhubung ke server. Cek internet \natau Koneksi Server!",
         );
       }
     }

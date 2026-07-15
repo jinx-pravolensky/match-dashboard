@@ -21,44 +21,40 @@ class ShotHole {
   });
 }
 
-class ViewerPreviewScanScreen extends StatefulWidget {
+class PreviewScanScreen extends StatefulWidget {
   final String imagePath;
-  final Map<String, dynamic> trainingData;
   final Map<String, dynamic> sesiData;
+  final Map<String, dynamic> rantingData;
+  final Map<String, dynamic> pesertaData;
+  final String matchId;
   final int selectedShots;
   final Map<String, dynamic> aiResult;
 
-  const ViewerPreviewScanScreen({
+  const PreviewScanScreen({
     super.key,
     required this.imagePath,
-    required this.trainingData,
     required this.sesiData,
+    required this.rantingData,
+    required this.pesertaData,
+    required this.matchId,
     required this.selectedShots,
     required this.aiResult,
   });
 
   @override
-  State<ViewerPreviewScanScreen> createState() =>
-      _ViewerPreviewScanScreenState();
+  State<PreviewScanScreen> createState() => _PreviewScanScreenState();
 }
 
-class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
+class _PreviewScanScreenState extends State<PreviewScanScreen> {
   List<ShotHole> holes = [];
   double totalScore = 0.0;
   ShotHole? _draggingHole;
   bool _isDataExtracted = false;
-  late bool _isDecimal;
 
   String windageStr = "0,0 mm";
   String elevationStr = "0,0 mm";
   String meanRadiusStr = "0,0 mm";
   String maxSpreadStr = "0,0 mm";
-
-  @override
-  void initState() {
-    super.initState();
-    _isDecimal = widget.trainingData['skorDesimal'] ?? false;
-  }
 
   @override
   void didChangeDependencies() {
@@ -73,19 +69,8 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
     double screenWidth = MediaQuery.of(context).size.width;
     double scale = screenWidth / 700.0;
 
-    List<dynamic> rawHoles = List.from(widget.aiResult['holes'] ?? []);
-
-    rawHoles.sort((a, b) {
-      double scoreA = (a['score'] ?? 0).toDouble();
-      double scoreB = (b['score'] ?? 0).toDouble();
-      return scoreB.compareTo(scoreA);
-    });
-
-    int limit = widget.selectedShots;
-    int count = 0;
-
+    List<dynamic> rawHoles = widget.aiResult['holes'] ?? [];
     for (var hole in rawHoles) {
-      if (count >= limit) break;
       ShotHole newHole = ShotHole(
         position: Offset(
           (hole['x'] as num).toDouble() * scale,
@@ -95,7 +80,6 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
       );
       _updateScoreBerdasarkanPosisi(newHole);
       holes.add(newHole);
-      count++;
     }
     _recalculateTotalScore();
   }
@@ -105,7 +89,6 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
     for (var hole in holes) {
       tempTotal += hole.score;
     }
-
     String tempWindage = "0,0 mm";
     String tempElevation = "0,0 mm";
     String tempMeanRadius = "0,0 mm";
@@ -121,23 +104,24 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
           (widget.aiResult['target_center']['y'] as num).toDouble() * scale;
       double pixelPerMm =
           (widget.aiResult['pixel_per_mm'] as num).toDouble() * scale;
-
       double sumX = 0;
       double sumY = 0;
       for (var hole in holes) {
         sumX += hole.position.dx;
         sumY += hole.position.dy;
       }
-
       double groupCenterX = sumX / holes.length;
       double groupCenterY = sumY / holes.length;
 
+      // 2. Windage & Elevation (Penyimpangan Titik Tengah Grup dari Bulls Eye)
       double dxPixel = groupCenterX - centerX;
       double windageMm = dxPixel / pixelPerMm;
 
+      // Di Flutter, Y = 0 ada di atas layar. Jadi dibalik biar Atas (+), Bawah (-)
       double dyPixel = centerY - groupCenterY;
       double elevationMm = dyPixel / pixelPerMm;
 
+      // 3. Mean Radius (Rata-rata jarak setiap peluru ke Titik Tengah Grup)
       double sumRadius = 0;
       for (var hole in holes) {
         double hx = hole.position.dx - groupCenterX;
@@ -146,6 +130,7 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
       }
       double meanRadiusMm = (sumRadius / holes.length) / pixelPerMm;
 
+      // 4. Max Spread (Jarak terjauh antar 2 peluru mana pun)
       double maxSpreadPixel = 0;
       for (int i = 0; i < holes.length; i++) {
         for (int j = i + 1; j < holes.length; j++) {
@@ -154,7 +139,6 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
         }
       }
       double maxSpreadMm = maxSpreadPixel / pixelPerMm;
-
       String windDir = windageMm > 0
           ? "(Kanan)"
           : windageMm < 0
@@ -189,15 +173,15 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
     if (widget.aiResult['target_center'] != null &&
         widget.aiResult['pixel_per_mm'] != null) {
       double scale = MediaQuery.of(context).size.width / 700.0;
+
       double centerX =
           (widget.aiResult['target_center']['x'] as num).toDouble() * scale;
       double centerY =
           (widget.aiResult['target_center']['y'] as num).toDouble() * scale;
       double pixelPerMm =
           (widget.aiResult['pixel_per_mm'] as num).toDouble() * scale;
-
       String disiplin = widget.aiResult['disiplin'] ?? 'rifle';
-
+      bool isDecimal = widget.rantingData['skorDesimal'] ?? false;
       double dx = hole.position.dx - centerX;
       double dy = hole.position.dy - centerY;
       double distancePixel = sqrt(dx * dx + dy * dy);
@@ -211,11 +195,12 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
       }
 
       calculatedScore = calculatedScore.clamp(0.0, 10.9);
-      if (_isDecimal) {
+      if (isDecimal) {
         calculatedScore = double.parse(calculatedScore.toStringAsFixed(1));
       } else {
         calculatedScore = calculatedScore.floorToDouble().clamp(0.0, 10.0);
       }
+
       hole.score = calculatedScore;
     } else {
       hole.score = 0.0;
@@ -231,7 +216,7 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
     );
     try {
       final url = Uri.parse(
-        '${ApiConfig.baseUrl}/training/${widget.trainingData['_id']}/sesi/${widget.sesiData['_id']}/update-score',
+        '${ApiConfig.baseUrl}/match/${widget.matchId}/ranting/${widget.rantingData['_id']}/peserta/${widget.pesertaData['_id']}/sesi/${widget.sesiData['_id']}/update-score',
       );
       List<double> finalScores = holes.map((h) => h.score).toList();
       final response = await http.put(
@@ -244,6 +229,7 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
           "elevation": elevationStr,
           "meanRadius": meanRadiusStr,
           "maxSpread": maxSpreadStr,
+
           "skorDetailArray": finalScores,
         }),
       );
@@ -283,17 +269,26 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
       }
     } catch (e) {
       Navigator.pop(context);
+      print("Gagal nyimpen: $e");
     }
   }
 
   String formatScore(double score) {
-    return _isDecimal ? score.toStringAsFixed(1) : score.toInt().toString();
+    return score == score.toInt() ? score.toInt().toString() : score.toString();
   }
 
   double _getKaliberSizeInMm() {
-    String kaliberStr = (widget.trainingData['amunisi'] ?? '4,5')
-        .toString()
-        .toLowerCase();
+    String kaliberStr =
+        (widget.rantingData['amunisi'] ??
+                widget.rantingData['kaliberAmunisi'] ??
+                widget.rantingData['kaliber_amunisi'] ??
+                widget.sesiData['kaliberAmunisi'] ??
+                widget.sesiData['kaliber_amunisi'] ??
+                widget.pesertaData['kaliberAmunisi'] ??
+                widget.pesertaData['kaliber_amunisi'] ??
+                '4,5')
+            .toString()
+            .toLowerCase();
     if (kaliberStr.contains('6,3') || kaliberStr.contains('.25')) return 10.3;
     if (kaliberStr.contains('4,5') || kaliberStr.contains('.177')) return 4.5;
     if (kaliberStr.contains('5,6') || kaliberStr.contains('.22')) return 5.6;
@@ -315,6 +310,7 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
       return 9.1;
     if (kaliberStr.contains('.40')) return 10.17;
     if (kaliberStr.contains('.44') || kaliberStr.contains('.45')) return 11.43;
+
     return 4.5;
   }
 
@@ -328,15 +324,17 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
     double screenPixelPerMm = pixelPerMmFromPython * scale;
     double caliberMm = _getKaliberSizeInMm();
     double visualFix = 1.1;
+
     double circleSize = (caliberMm * screenPixelPerMm) * visualFix;
     double halfSize = circleSize / 2;
+
     String disiplin = widget.aiResult['disiplin'] ?? 'rifle';
     double aimingMarkDiameterMm = disiplin == 'rifle' ? 30.5 : 59.5;
     double aimingMarkScreenSize = aimingMarkDiameterMm * screenPixelPerMm;
     double aimingMarkHalfSize = aimingMarkScreenSize / 2;
+
     double? centerX;
     double? centerY;
-
     if (widget.aiResult['target_center'] != null) {
       centerX =
           (widget.aiResult['target_center']['x'] as num).toDouble() * scale;
@@ -420,12 +418,13 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
                                       186,
                                       3,
                                       247,
-                                    ),
+                                    ), // Warna Ungu Neon lu tetap aman!
                                     width: 2,
                                   ),
                                 ),
                               ),
                             ),
+                          // Titik Merah Kecil di Absolut Center (Bentuk Plus Ungu)
                           if (centerX != null && centerY != null)
                             Positioned(
                               left: centerX - 7.5,
@@ -436,6 +435,7 @@ class _ViewerPreviewScanScreenState extends State<ViewerPreviewScanScreen> {
                                 size: 15,
                               ),
                             ),
+
                           ...holes.map((hole) {
                             Color dotColor = Colors.redAccent;
                             if (hole.isSelected) {

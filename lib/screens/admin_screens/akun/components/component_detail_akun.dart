@@ -10,7 +10,8 @@ class ComponenDetailAkunAdmin extends StatefulWidget {
   const ComponenDetailAkunAdmin({super.key});
 
   @override
-  State<ComponenDetailAkunAdmin> createState() => _ComponenDetailAkunAdminState();
+  State<ComponenDetailAkunAdmin> createState() =>
+      _ComponenDetailAkunAdminState();
 }
 
 class _ComponenDetailAkunAdminState extends State<ComponenDetailAkunAdmin> {
@@ -49,11 +50,15 @@ class _ComponenDetailAkunAdminState extends State<ComponenDetailAkunAdmin> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator(color: primaryColor));
+      return const Center(
+        child: CircularProgressIndicator(color: primaryColor),
+      );
     }
 
     if (userData == null) {
-      return const Center(child: Text("Gagal memuat data profil", style: text14PrimaryBold));
+      return const Center(
+        child: Text("Gagal memuat data profil", style: text14PrimaryBold),
+      );
     }
 
     String customId = userData!['customId'] ?? '-';
@@ -80,22 +85,23 @@ class _ComponenDetailAkunAdminState extends State<ComponenDetailAkunAdmin> {
         child: Column(
           children: [
             Text(customId, style: text18PrimaryBold),
+            // const SizedBox(height: 5),
+            const Divider(thickness: 2),
             const SizedBox(height: 5),
-            const Divider(thickness: 1.5),
-            const SizedBox(height: 10),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  children: [
-                    _buildInfoField("Nama Lengkap", nama, Icons.perm_contact_calendar_rounded),
-                    _buildInfoField("Email", email, Icons.email_rounded),
-                    _buildInfoField("Nomor HP", phone, Icons.phone_android_rounded),
-                    _buildInfoField("Jenis Kelamin", gender, Icons.wc_rounded),
-                    _buildInfoField("Peran", roleDisplay, Icons.admin_panel_settings_rounded),
-                  ],
+            Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildInfoField("Nama Lengkap", nama, Icons.assignment_rounded),
+                _buildInfoField("Alamat Email", email, Icons.email_rounded),
+                _buildInfoField(
+                  "Nomor Handphone",
+                  phone,
+                  Icons.tablet_mac_rounded,
                 ),
-              ),
+                _buildInfoField("Jenis Kelamin", gender, Icons.article_rounded),
+                _buildInfoField("Peran", roleDisplay, Icons.article_rounded),
+              ],
             ),
           ],
         ),
@@ -105,11 +111,18 @@ class _ComponenDetailAkunAdminState extends State<ComponenDetailAkunAdmin> {
 
   Widget _buildInfoField(String label, String value, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
           const SizedBox(height: 5),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
@@ -119,10 +132,17 @@ class _ComponenDetailAkunAdminState extends State<ComponenDetailAkunAdmin> {
             ),
             child: Row(
               children: [
-                Icon(icon, color: const Color(0xFFDDA15E), size: 28),
+                Icon(icon, color: secondaryColor, size: 28),
                 const SizedBox(width: 15),
                 Expanded(
-                  child: Text(value, style: const TextStyle(color: Color(0xFF0F2C59), fontWeight: FontWeight.bold, fontSize: 14)),
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      color: Color(0xFF0F2C59),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
               ],
             ),

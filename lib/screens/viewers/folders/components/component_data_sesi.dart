@@ -28,6 +28,7 @@ class _ComponentFolderSesiViewerState extends State<ComponentFolderSesiViewer> {
   void initState() {
     super.initState();
     listSesi = widget.trainingData['sesiTembakan'] ?? [];
+    _sortSesiList();
     _fetchFreshData();
 
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
@@ -39,6 +40,19 @@ class _ComponentFolderSesiViewerState extends State<ComponentFolderSesiViewer> {
   void dispose() {
     _autoRefreshTimer?.cancel();
     super.dispose();
+  }
+
+  int _extractNumber(String text) {
+    final match = RegExp(r'\d+').firstMatch(text);
+    return match != null ? int.parse(match.group(0)!) : 999999;
+  }
+
+  void _sortSesiList() {
+    listSesi.sort((a, b) {
+      int numA = _extractNumber(a['namaSesi'] ?? '');
+      int numB = _extractNumber(b['namaSesi'] ?? '');
+      return numA.compareTo(numB);
+    });
   }
 
   Future<void> _fetchFreshData() async {
@@ -55,11 +69,11 @@ class _ComponentFolderSesiViewerState extends State<ComponentFolderSesiViewer> {
         if (mounted) {
           setState(() {
             listSesi = data['sesiTembakan'] ?? [];
+            _sortSesiList();
           });
         }
       }
     } catch (e) {
-      print("Error: $e");
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -77,12 +91,26 @@ class _ComponentFolderSesiViewerState extends State<ComponentFolderSesiViewer> {
         if (mounted) {
           setState(() {
             listSesi = data['sesiTembakan'] ?? [];
+            _sortSesiList();
           });
         }
       }
-    } catch (e) {
-      // No Error
+    } catch (e) {}
+  }
+
+  int _getNextSesiNumber() {
+    List<int> existingNumbers = [];
+    for (var sesi in listSesi) {
+      existingNumbers.add(_extractNumber(sesi['namaSesi'] ?? ''));
     }
+    int maxSesi = widget.trainingData['seriesPerSession'] ?? 100;
+    if (maxSesi == 0) maxSesi = 100;
+    for (int i = 1; i <= maxSesi; i++) {
+      if (!existingNumbers.contains(i)) {
+        return i;
+      }
+    }
+    return listSesi.length + 1;
   }
 
   Future<void> _goToTambahSesi() async {
@@ -103,7 +131,7 @@ class _ComponentFolderSesiViewerState extends State<ComponentFolderSesiViewer> {
       ).show();
       return;
     }
-    int nextSesiNumber = listSesi.length + 1;
+    int nextSesiNumber = _getNextSesiNumber();
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -219,7 +247,6 @@ class _ComponentFolderSesiViewerState extends State<ComponentFolderSesiViewer> {
                       ),
                     );
                     _fetchFreshData();
-                    print("Buka Sesi: ${sesi['namaSesi']}");
                   },
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 10),
@@ -303,12 +330,73 @@ class _ComponentFolderSesiViewerState extends State<ComponentFolderSesiViewer> {
                               onPressed: () {
                                 AwesomeDialog(
                                   context: context,
-                                  dialogType: DialogType.info,
+                                  dialogType: DialogType.warning,
                                   animType: AnimType.scale,
-                                  title: 'Coming Soon',
-                                  desc: 'Fitur Hapus Sesi Sedang Dikembangkan',
-                                  btnOkColor: primaryColor,
-                                  btnOkOnPress: () {},
+                                  title: 'Hapus Sesi?',
+                                  desc:
+                                      'Yakin ingin menghapus ${sesi['namaSesi']}?\nData skor dan hasil scan akan \nhilang permanen.',
+                                  btnCancelOnPress: () {},
+                                  btnCancelText: 'Batal',
+                                  btnOkColor: const Color(0xFFC72B2B),
+                                  btnOkText: 'Hapus',
+                                  btnCancelColor: const Color(0xFF547A95),
+                                  btnOkOnPress: () async {
+                                    showDialog(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (context) => const Center(
+                                        child: CircularProgressIndicator(
+                                          color: primaryColor,
+                                        ),
+                                      ),
+                                    );
+                                    try {
+                                      final url = Uri.parse(
+                                        '${ApiConfig.baseUrl}/training/${widget.trainingData['_id']}/sesi/${sesi['_id']}',
+                                      );
+                                      final response = await http.delete(url);
+                                      Navigator.pop(context);
+                                      if (response.statusCode == 200) {
+                                        await AwesomeDialog(
+                                          context: context,
+                                          dialogType: DialogType.success,
+                                          animType: AnimType.scale,
+                                          title: 'Berhasil',
+                                          btnOkText: 'Selesai',
+                                          desc:
+                                              'Sesi Latihan berhasil dihapus!',
+                                          btnOkColor: primaryColor,
+                                          dismissOnTouchOutside: false,
+                                          dismissOnBackKeyPress: false,
+                                          btnOkOnPress: () {},
+                                        ).show();
+                                        if (mounted) {
+                                          _fetchFreshData();
+                                        }
+                                      } else {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              "Gagal menghapus sesi",
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      Navigator.pop(context);
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text("Error: $e"),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  },
                                 ).show();
                               },
                               icon: const Icon(

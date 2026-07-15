@@ -26,6 +26,7 @@ class _ComponentDataRantingViewerState
   Timer? _autoRefreshTimer;
 
   final TextEditingController searchController = TextEditingController();
+  String currentSort = "Data Terlama";
 
   @override
   void initState() {
@@ -43,6 +44,59 @@ class _ComponentDataRantingViewerState
     super.dispose();
   }
 
+  void _applySearchAndSort() {
+    List<dynamic> temp = List.from(listRanting);
+
+    if (searchController.text.isNotEmpty) {
+      final query = searchController.text.toLowerCase();
+      temp = temp.where((ranting) {
+        final subKategori = (ranting['subKategori'] ?? '')
+            .toString()
+            .toLowerCase();
+        return subKategori.contains(query);
+      }).toList();
+    }
+
+    if (currentSort == 'Data Terbaru') {
+      temp = temp.reversed.toList();
+    } else if (currentSort == 'Nama A-Z') {
+      temp.sort((a, b) {
+        final titleA = (a['subKategori'] ?? '').toString().toLowerCase();
+        final titleB = (b['subKategori'] ?? '').toString().toLowerCase();
+        return titleA.compareTo(titleB);
+      });
+    }
+
+    setState(() {
+      filteredRanting = temp;
+    });
+  }
+
+  PopupMenuItem<String> _buildPopupItem(String title) {
+    final isSelected = currentSort == title;
+    return PopupMenuItem<String>(
+      value: title,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> fetchTrainingData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -58,11 +112,7 @@ class _ComponentDataRantingViewerState
         if (mounted) {
           setState(() {
             listRanting = data;
-            if (searchController.text.isEmpty) {
-              filteredRanting = listRanting;
-            } else {
-              onSearch(searchController.text);
-            }
+            _applySearchAndSort();
             isLoading = false;
           });
         }
@@ -89,29 +139,11 @@ class _ComponentDataRantingViewerState
         if (mounted) {
           setState(() {
             listRanting = data;
-            if (searchController.text.isEmpty) {
-              filteredRanting = listRanting;
-            } else {
-              onSearch(searchController.text);
-            }
+            _applySearchAndSort();
           });
         }
       }
-    } catch (e) {
-      // Abaikan error untuk silent fetch
-    }
-  }
-
-  void onSearch(String value) {
-    final query = value.toLowerCase();
-    setState(() {
-      filteredRanting = listRanting.where((ranting) {
-        final subKategori = (ranting['subKategori'] ?? '')
-            .toString()
-            .toLowerCase();
-        return subKategori.contains(query);
-      }).toList();
-    });
+    } catch (e) {}
   }
 
   @override
@@ -214,7 +246,9 @@ class _ComponentDataRantingViewerState
                       ),
                       child: TextField(
                         controller: searchController,
-                        onChanged: onSearch,
+                        onChanged: (value) {
+                          _applySearchAndSort();
+                        },
                         decoration: const InputDecoration(
                           hintText: 'Cari Ranting...',
                           hintStyle: text14greyBold,
@@ -226,12 +260,36 @@ class _ComponentDataRantingViewerState
                     ),
                   ),
                   const SizedBox(width: 5),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(
-                      Icons.library_books_rounded,
+                  Theme(
+                    data: Theme.of(context).copyWith(
+                      splashColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                    ),
+                    child: PopupMenuButton<String>(
+                      icon: const Icon(
+                        Icons.library_books_rounded,
+                        color: primaryColor,
+                        size: 35,
+                      ),
                       color: primaryColor,
-                      size: 35,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      offset: const Offset(0, 50),
+                      elevation: 5,
+                      onSelected: (String value) {
+                        setState(() {
+                          currentSort = value;
+                          _applySearchAndSort();
+                        });
+                      },
+                      itemBuilder: (BuildContext context) {
+                        return [
+                          _buildPopupItem('Data Terlama'),
+                          _buildPopupItem('Data Terbaru'),
+                          _buildPopupItem('Nama A-Z'),
+                        ];
+                      },
                     ),
                   ),
                 ],
@@ -260,7 +318,6 @@ class _ComponentDataRantingViewerState
                           itemBuilder: (context, index) {
                             final ranting = filteredRanting[index];
 
-                            // Mengambil data logo dan gambar dari kamus data_ranting
                             final kamusData = daftarKamusRanting.firstWhere(
                               (k) =>
                                   k['sub_kategori'] == ranting['subKategori'] &&
@@ -282,7 +339,6 @@ class _ComponentDataRantingViewerState
                                   ),
                                 );
                                 fetchTrainingData();
-                                print("Buka Folder Latihan: ${ranting['_id']}");
                               },
                               borderRadius: BorderRadius.circular(15),
                               child: Container(

@@ -14,7 +14,7 @@ class DetailPertandinganScreen extends StatelessWidget {
     }
     return "Admin Perbakin";
   }
-
+//
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,9 +50,9 @@ class DetailPertandinganScreen extends StatelessWidget {
                     style: text16blackBold,
                   ),
                 ),
+                const SizedBox(height: 5),
+                Divider(color: Colors.grey.shade300, thickness: 2),
                 const SizedBox(height: 10),
-                Divider(color: Colors.grey.shade300, thickness: 1.5),
-                const SizedBox(height: 15),
                 _buildReadOnlyField(
                   "Nama Pertandingan",
                   Icons.assignment_rounded,
@@ -106,7 +106,7 @@ class DetailPertandinganScreen extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, color: goldColor, size: 24),
+              Icon(icon, color: secondaryColor, size: 24),
               const SizedBox(width: 15),
               Expanded(child: Text(value, style: text14PrimaryBold)),
             ],

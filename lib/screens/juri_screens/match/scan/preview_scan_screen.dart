@@ -68,9 +68,16 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
   void _ekstrakDataAI() {
     double screenWidth = MediaQuery.of(context).size.width;
     double scale = screenWidth / 700.0;
-
-    List<dynamic> rawHoles = widget.aiResult['holes'] ?? [];
+    List<dynamic> rawHoles = List.from(widget.aiResult['holes'] ?? []);
+    rawHoles.sort((a, b) {
+      double scoreA = (a['score'] ?? 0).toDouble();
+      double scoreB = (b['score'] ?? 0).toDouble();
+      return scoreB.compareTo(scoreA);
+    });
+    int limit = widget.selectedShots;
+    int count = 0;
     for (var hole in rawHoles) {
+      if (count >= limit) break;
       ShotHole newHole = ShotHole(
         position: Offset(
           (hole['x'] as num).toDouble() * scale,
@@ -80,6 +87,7 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
       );
       _updateScoreBerdasarkanPosisi(newHole);
       holes.add(newHole);
+      count++;
     }
     _recalculateTotalScore();
   }
@@ -93,7 +101,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
     String tempElevation = "0,0 mm";
     String tempMeanRadius = "0,0 mm";
     String tempMaxSpread = "0,0 mm";
-
     if (holes.isNotEmpty &&
         widget.aiResult['target_center'] != null &&
         widget.aiResult['pixel_per_mm'] != null) {
@@ -112,16 +119,10 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
       }
       double groupCenterX = sumX / holes.length;
       double groupCenterY = sumY / holes.length;
-
-      // 2. Windage & Elevation (Penyimpangan Titik Tengah Grup dari Bulls Eye)
       double dxPixel = groupCenterX - centerX;
       double windageMm = dxPixel / pixelPerMm;
-
-      // Di Flutter, Y = 0 ada di atas layar. Jadi dibalik biar Atas (+), Bawah (-)
       double dyPixel = centerY - groupCenterY;
       double elevationMm = dyPixel / pixelPerMm;
-
-      // 3. Mean Radius (Rata-rata jarak setiap peluru ke Titik Tengah Grup)
       double sumRadius = 0;
       for (var hole in holes) {
         double hx = hole.position.dx - groupCenterX;
@@ -129,8 +130,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
         sumRadius += sqrt(hx * hx + hy * hy);
       }
       double meanRadiusMm = (sumRadius / holes.length) / pixelPerMm;
-
-      // 4. Max Spread (Jarak terjauh antar 2 peluru mana pun)
       double maxSpreadPixel = 0;
       for (int i = 0; i < holes.length; i++) {
         for (int j = i + 1; j < holes.length; j++) {
@@ -149,7 +148,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
           : elevationMm < 0
           ? "(Bawah)"
           : "";
-
       tempWindage =
           "${windageMm.abs().toStringAsFixed(1).replaceAll('.', ',')} mm $windDir";
       tempElevation =
@@ -159,7 +157,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
       tempMaxSpread =
           "${maxSpreadMm.toStringAsFixed(1).replaceAll('.', ',')} mm";
     }
-
     setState(() {
       totalScore = double.parse(tempTotal.toStringAsFixed(1));
       windageStr = tempWindage;
@@ -173,7 +170,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
     if (widget.aiResult['target_center'] != null &&
         widget.aiResult['pixel_per_mm'] != null) {
       double scale = MediaQuery.of(context).size.width / 700.0;
-
       double centerX =
           (widget.aiResult['target_center']['x'] as num).toDouble() * scale;
       double centerY =
@@ -187,20 +183,17 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
       double distancePixel = sqrt(dx * dx + dy * dy);
       double distanceMm = distancePixel / pixelPerMm;
       double calculatedScore = 0.0;
-
       if (disiplin == 'rifle') {
         calculatedScore = 11.0 - (distanceMm / 2.5);
       } else {
         calculatedScore = 11.0 - (distanceMm / 8.0);
       }
-
       calculatedScore = calculatedScore.clamp(0.0, 10.9);
       if (isDecimal) {
         calculatedScore = double.parse(calculatedScore.toStringAsFixed(1));
       } else {
         calculatedScore = calculatedScore.floorToDouble().clamp(0.0, 10.0);
       }
-
       hole.score = calculatedScore;
     } else {
       hole.score = 0.0;
@@ -229,7 +222,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
           "elevation": elevationStr,
           "meanRadius": meanRadiusStr,
           "maxSpread": maxSpreadStr,
-
           "skorDetailArray": finalScores,
         }),
       );
@@ -269,7 +261,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
       }
     } catch (e) {
       Navigator.pop(context);
-      print("Gagal nyimpen: $e");
     }
   }
 
@@ -324,15 +315,12 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
     double screenPixelPerMm = pixelPerMmFromPython * scale;
     double caliberMm = _getKaliberSizeInMm();
     double visualFix = 1.1;
-
     double circleSize = (caliberMm * screenPixelPerMm) * visualFix;
     double halfSize = circleSize / 2;
-
     String disiplin = widget.aiResult['disiplin'] ?? 'rifle';
     double aimingMarkDiameterMm = disiplin == 'rifle' ? 30.5 : 59.5;
     double aimingMarkScreenSize = aimingMarkDiameterMm * screenPixelPerMm;
     double aimingMarkHalfSize = aimingMarkScreenSize / 2;
-
     double? centerX;
     double? centerY;
     if (widget.aiResult['target_center'] != null) {
@@ -341,7 +329,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
       centerY =
           (widget.aiResult['target_center']['y'] as num).toDouble() * scale;
     }
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -418,13 +405,12 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
                                       186,
                                       3,
                                       247,
-                                    ), // Warna Ungu Neon lu tetap aman!
+                                    ),
                                     width: 2,
                                   ),
                                 ),
                               ),
                             ),
-                          // Titik Merah Kecil di Absolut Center (Bentuk Plus Ungu)
                           if (centerX != null && centerY != null)
                             Positioned(
                               left: centerX - 7.5,
@@ -435,7 +421,6 @@ class _PreviewScanScreenState extends State<PreviewScanScreen> {
                                 size: 15,
                               ),
                             ),
-
                           ...holes.map((hole) {
                             Color dotColor = Colors.redAccent;
                             if (hole.isSelected) {

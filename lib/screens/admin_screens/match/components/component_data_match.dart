@@ -20,11 +20,64 @@ class _ComponentDataMatchState extends State<ComponentDataMatch> {
   bool isLoading = true;
 
   final TextEditingController searchController = TextEditingController();
+  String currentSort = "Data Terlama";
 
   @override
   void initState() {
     super.initState();
     fetchDataMatch();
+  }
+
+  void _applySearchAndSort() {
+    List<dynamic> temp = List.from(allMatch);
+
+    if (searchController.text.isNotEmpty) {
+      final keyword = searchController.text.toLowerCase();
+      temp = temp.where((match) {
+        final id = (match['matchCustomId'] ?? '').toString().toLowerCase();
+        final title = (match['title'] ?? '').toString().toLowerCase();
+        return id.contains(keyword) || title.contains(keyword);
+      }).toList();
+    }
+
+    if (currentSort == 'Data Terbaru') {
+      temp = temp.reversed.toList();
+    } else if (currentSort == 'Nama A-Z') {
+      temp.sort((a, b) {
+        final titleA = (a['title'] ?? '').toString().toLowerCase();
+        final titleB = (b['title'] ?? '').toString().toLowerCase();
+        return titleA.compareTo(titleB);
+      });
+    }
+
+    setState(() {
+      listMatch = temp;
+    });
+  }
+
+  PopupMenuItem<String> _buildPopupItem(String title) {
+    final isSelected = currentSort == title;
+    return PopupMenuItem<String>(
+      value: title,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> fetchDataMatch() async {
@@ -42,7 +95,7 @@ class _ComponentDataMatchState extends State<ComponentDataMatch> {
 
         setState(() {
           allMatch = data;
-          listMatch = data;
+          _applySearchAndSort();
           isLoading = false;
         });
       } else {
@@ -51,20 +104,6 @@ class _ComponentDataMatchState extends State<ComponentDataMatch> {
     } catch (e) {
       setState(() => isLoading = false);
     }
-  }
-
-  void searchMatch(String keyword) {
-    final result = allMatch.where((match) {
-      final id = (match['matchCustomId'] ?? '').toLowerCase();
-      final title = (match['title'] ?? '').toLowerCase();
-
-      return id.contains(keyword.toLowerCase()) ||
-          title.contains(keyword.toLowerCase());
-    }).toList();
-
-    setState(() {
-      listMatch = result;
-    });
   }
 
   @override
@@ -97,9 +136,7 @@ class _ComponentDataMatchState extends State<ComponentDataMatch> {
               height: 1.5,
             ),
           ),
-
           const SizedBox(height: 20),
-
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryColor,
@@ -109,7 +146,6 @@ class _ComponentDataMatchState extends State<ComponentDataMatch> {
               ),
               elevation: 5,
             ),
-
             onPressed: () async {
               final result = await Navigator.push(
                 context,
@@ -118,14 +154,11 @@ class _ComponentDataMatchState extends State<ComponentDataMatch> {
 
               if (result == true) fetchDataMatch();
             },
-
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.add, color: Colors.white),
-
                 SizedBox(width: 8),
-
                 Text(
                   "Tambahkan Match",
                   style: TextStyle(
@@ -146,10 +179,8 @@ class _ComponentDataMatchState extends State<ComponentDataMatch> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
               const Text(
                 "Daftar History Match",
@@ -160,27 +191,68 @@ class _ComponentDataMatchState extends State<ComponentDataMatch> {
                 ),
               ),
               const SizedBox(height: 15),
-              Container(
-                height: 45,
-
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: primaryColor, width: 1.5),
-                ),
-                child: TextField(
-                  controller: searchController,
-                  onChanged: (value) {
-                    searchMatch(value);
-                  },
-                  decoration: const InputDecoration(
-                    hintText: 'Cari ID atau Nama...',
-                    hintStyle: TextStyle(color: Colors.black45, fontSize: 14),
-                    prefixIcon: Icon(Icons.search, color: primaryColor),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 45,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: primaryColor, width: 1.5),
+                      ),
+                      child: TextField(
+                        controller: searchController,
+                        onChanged: (value) {
+                          _applySearchAndSort();
+                        },
+                        decoration: const InputDecoration(
+                          hintText: 'Cari ID atau Nama...',
+                          hintStyle: TextStyle(
+                            color: Colors.black45,
+                            fontSize: 14,
+                          ),
+                          prefixIcon: Icon(Icons.search, color: primaryColor),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 5),
+                  Theme(
+                    data: Theme.of(context).copyWith(
+                      splashColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                    ),
+                    child: PopupMenuButton<String>(
+                      icon: const Icon(
+                        Icons.library_books_outlined,
+                        color: primaryColor,
+                        size: 35,
+                      ),
+                      color: primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      offset: const Offset(0, 50),
+                      elevation: 5,
+                      onSelected: (String value) {
+                        setState(() {
+                          currentSort = value;
+                          _applySearchAndSort();
+                        });
+                      },
+                      itemBuilder: (BuildContext context) {
+                        return [
+                          _buildPopupItem('Data Terlama'),
+                          _buildPopupItem('Data Terbaru'),
+                          _buildPopupItem('Nama A-Z'),
+                        ];
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
               Expanded(

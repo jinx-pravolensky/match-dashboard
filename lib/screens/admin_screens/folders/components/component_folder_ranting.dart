@@ -22,8 +22,8 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
   List<dynamic> filteredRanting = [];
   bool isLoading = true;
   Timer? _autoRefreshTimer;
-
   final TextEditingController searchController = TextEditingController();
+  String currentSort = "Data Terlama";
 
   @override
   void initState() {
@@ -41,6 +41,62 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
     super.dispose();
   }
 
+  void _applySearchAndSort() {
+    List<dynamic> temp = List.from(listRanting);
+    if (searchController.text.isNotEmpty) {
+      final query = searchController.text.toLowerCase();
+      temp = temp.where((ranting) {
+        final subKategori = (ranting['subKategori'] ?? '')
+            .toString()
+            .toLowerCase();
+        final kategoriUtama = (ranting['kategoriUtama'] ?? '')
+            .toString()
+            .toLowerCase();
+        return subKategori.contains(query) || kategoriUtama.contains(query);
+      }).toList();
+    }
+    if (currentSort == 'Data Terbaru') {
+      temp = temp.reversed.toList();
+    } else if (currentSort == 'Nama A-Z') {
+      temp.sort((a, b) {
+        final titleA = (a['subKategori'] ?? '').toString().toLowerCase();
+        final titleB = (b['subKategori'] ?? '').toString().toLowerCase();
+        return titleA.compareTo(titleB);
+      });
+    }
+
+    setState(() {
+      filteredRanting = temp;
+    });
+  }
+
+  // Widget Item untuk Dropdown Pop-Up
+  PopupMenuItem<String> _buildPopupItem(String title) {
+    final isSelected = currentSort == title;
+    return PopupMenuItem<String>(
+      value: title,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+  // -----------------------------
+
   Future<void> fetchMatchData() async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}/match/${widget.matchId}');
@@ -51,11 +107,7 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
         if (mounted) {
           setState(() {
             listRanting = data['ranting'] ?? [];
-            if (searchController.text.isEmpty) {
-              filteredRanting = listRanting;
-            } else {
-              onSearch(searchController.text);
-            }
+            _applySearchAndSort(); // Panggil fungsi gabungan
             isLoading = false;
           });
         }
@@ -77,29 +129,13 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
         if (mounted) {
           setState(() {
             listRanting = data['ranting'] ?? [];
-            if (searchController.text.isEmpty) {
-              filteredRanting = listRanting;
-            } else {
-              onSearch(searchController.text);
-            }
+            _applySearchAndSort(); // Panggil fungsi gabungan
           });
         }
       }
     } catch (e) {
       // Abaikan error
     }
-  }
-
-  void onSearch(String value) {
-    final query = value.toLowerCase();
-    setState(() {
-      filteredRanting = listRanting.where((ranting) {
-        final subKategori = (ranting['subKategori'] ?? '')
-            .toString()
-            .toLowerCase();
-        return subKategori.contains(query);
-      }).toList();
-    });
   }
 
   @override
@@ -198,7 +234,9 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
                       ),
                       child: TextField(
                         controller: searchController,
-                        onChanged: onSearch,
+                        onChanged: (value) {
+                          _applySearchAndSort(); // Panggil fungsi gabungan
+                        },
                         decoration: const InputDecoration(
                           hintText: 'Cari Nama Ranting...',
                           hintStyle: text14greyBold,
@@ -210,14 +248,45 @@ class _ComponentFolderRantingState extends State<ComponentFolderRanting> {
                     ),
                   ),
                   const SizedBox(width: 5),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(
-                      Icons.library_books_outlined,
-                      color: primaryColor,
-                      size: 35,
+                  // --- TAMPILAN DROPDOWN POPUP MENU BUTTON ---
+                  Theme(
+                    data: Theme.of(context).copyWith(
+                      splashColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                    ),
+                    child: PopupMenuButton<String>(
+                      icon: const Icon(
+                        Icons.library_books_outlined,
+                        color: primaryColor,
+                        size: 35,
+                      ),
+                      color: primaryColor, // Background kotak pop up
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          15,
+                        ), // Sudut melengkung
+                      ),
+                      offset: const Offset(
+                        0,
+                        50,
+                      ), // Geser agar tampil tepat di bawah Icon
+                      elevation: 5,
+                      onSelected: (String value) {
+                        setState(() {
+                          currentSort = value;
+                          _applySearchAndSort();
+                        });
+                      },
+                      itemBuilder: (BuildContext context) {
+                        return [
+                          _buildPopupItem('Data Terlama'),
+                          _buildPopupItem('Data Terbaru'),
+                          _buildPopupItem('Nama A-Z'),
+                        ];
+                      },
                     ),
                   ),
+                  // -------------------------------------------
                 ],
               ),
               const SizedBox(height: 20),

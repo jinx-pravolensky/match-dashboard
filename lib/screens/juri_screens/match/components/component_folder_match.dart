@@ -24,6 +24,7 @@ class _ComponentFolderDataMatchState extends State<ComponentFolderDataMatch> {
   List<dynamic> listMatch = [];
 
   final TextEditingController searchController = TextEditingController();
+  String currentSort = "Data Terlama";
 
   @override
   void initState() {
@@ -42,6 +43,58 @@ class _ComponentFolderDataMatchState extends State<ComponentFolderDataMatch> {
     super.dispose();
   }
 
+  void _applySearchAndSort() {
+    List<dynamic> temp = List.from(allMatch);
+
+    if (searchController.text.isNotEmpty) {
+      final keyword = searchController.text.toLowerCase();
+      temp = temp.where((match) {
+        final id = (match['matchCustomId'] ?? '').toString().toLowerCase();
+        final title = (match['title'] ?? '').toString().toLowerCase();
+        return id.contains(keyword) || title.contains(keyword);
+      }).toList();
+    }
+
+    if (currentSort == 'Data Terbaru') {
+      temp = temp.reversed.toList();
+    } else if (currentSort == 'Nama A-Z') {
+      temp.sort((a, b) {
+        final titleA = (a['title'] ?? '').toString().toLowerCase();
+        final titleB = (b['title'] ?? '').toString().toLowerCase();
+        return titleA.compareTo(titleB);
+      });
+    }
+
+    setState(() {
+      listMatch = temp;
+    });
+  }
+
+  PopupMenuItem<String> _buildPopupItem(String title) {
+    final isSelected = currentSort == title;
+    return PopupMenuItem<String>(
+      value: title,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _fetchJuriMatches() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -57,11 +110,7 @@ class _ComponentFolderDataMatchState extends State<ComponentFolderDataMatch> {
         if (mounted) {
           setState(() {
             allMatch = data;
-            if (searchController.text.isEmpty) {
-              listMatch = data;
-            } else {
-              _searchMatch(searchController.text);
-            }
+            _applySearchAndSort();
             isLoading = false;
           });
         }
@@ -77,39 +126,19 @@ class _ComponentFolderDataMatchState extends State<ComponentFolderDataMatch> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final juriId = prefs.getString('userId');
-
       if (juriId == null) return;
-
       final url = Uri.parse('${ApiConfig.baseUrl}/match/juri/$juriId');
       final response = await http.get(url);
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (mounted) {
           setState(() {
             allMatch = data;
-            if (searchController.text.isEmpty) {
-              listMatch = data;
-            } else {
-              _searchMatch(searchController.text);
-            }
+            _applySearchAndSort();
           });
         }
       }
-    } catch (e) {
-      // No Error
-    }
-  }
-
-  void _searchMatch(String keyword) {
-    final result = allMatch.where((match) {
-      final title = (match['title'] ?? '').toLowerCase();
-      return title.contains(keyword.toLowerCase());
-    }).toList();
-
-    setState(() {
-      listMatch = result;
-    });
+    } catch (e) {}
   }
 
   String _formatTanggalIndo(String dateStr) {
@@ -117,11 +146,9 @@ class _ComponentFolderDataMatchState extends State<ComponentFolderDataMatch> {
     try {
       List<String> parts = dateStr.split('-');
       if (parts.length != 3) return dateStr;
-
       String day = parts[0];
       String month = parts[1];
       String year = parts[2];
-
       List<String> namaBulan = [
         '',
         'Januari',
@@ -155,11 +182,9 @@ class _ComponentFolderDataMatchState extends State<ComponentFolderDataMatch> {
         child: CircularProgressIndicator(color: primaryColor),
       );
     }
-
     if (allMatch.isEmpty) {
       return _buildEmptyState();
     }
-
     return _buildFilledState();
   }
 
@@ -215,10 +240,10 @@ class _ComponentFolderDataMatchState extends State<ComponentFolderDataMatch> {
                   child: TextField(
                     controller: searchController,
                     onChanged: (value) {
-                      _searchMatch(value);
+                      _applySearchAndSort();
                     },
                     decoration: const InputDecoration(
-                      hintText: 'Cari Match...',
+                      hintText: 'Cari ID atau Nama...',
                       hintStyle: text14greyBold,
                       prefixIcon: Icon(Icons.search, color: primaryColor),
                       border: InputBorder.none,
@@ -229,12 +254,36 @@ class _ComponentFolderDataMatchState extends State<ComponentFolderDataMatch> {
               ),
               Container(
                 margin: const EdgeInsets.only(left: 5),
-                child: IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.library_books_outlined,
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    splashColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                  ),
+                  child: PopupMenuButton<String>(
+                    icon: const Icon(
+                      Icons.library_books_outlined,
+                      color: primaryColor,
+                      size: 35,
+                    ),
                     color: primaryColor,
-                    size: 35,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    offset: const Offset(0, 50),
+                    elevation: 5,
+                    onSelected: (String value) {
+                      setState(() {
+                        currentSort = value;
+                        _applySearchAndSort();
+                      });
+                    },
+                    itemBuilder: (BuildContext context) {
+                      return [
+                        _buildPopupItem('Data Terlama'),
+                        _buildPopupItem('Data Terbaru'),
+                        _buildPopupItem('Nama A-Z'),
+                      ];
+                    },
                   ),
                 ),
               ),

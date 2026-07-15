@@ -16,7 +16,11 @@ class DetailProfileAdmin extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: primaryColor, size: 28),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: primaryColor,
+            size: 28,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text("Detail Profil Saya", style: text20PrimaryBold),
@@ -49,10 +53,14 @@ class _DataDetailProfileBodyState extends State<DataDetailProfileBody> {
           Container(
             alignment: Alignment.center,
             margin: const EdgeInsets.only(top: 10, bottom: 20),
-            child: Image.asset('assets/images/Admin-Pertandingan.png', height: 150, fit: BoxFit.cover),
+            child: Image.asset(
+              'assets/images/Admin-Pertandingan.png',
+              height: 150,
+              fit: BoxFit.cover,
+            ),
           ),
           const SizedBox(height: 10),
-          const Expanded(child: ComponenDetailAkunAdmin()),
+          const ComponenDetailAkunAdmin(),
         ],
       ),
     );

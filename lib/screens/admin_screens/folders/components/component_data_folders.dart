@@ -1,12 +1,12 @@
-import 'dart:convert';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:ns3_project/components/colors.dart';
-import 'package:ns3_project/components/text_format.dart';
-import 'package:ns3_project/screens/admin_screens/folders/folder_ranting_screen.dart';
 import 'package:ns3_project/service/api_config.dart';
+import 'package:ns3_project/components/text_format.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ns3_project/screens/admin_screens/folders/folder_ranting_screen.dart';
 import 'package:ns3_project/screens/admin_screens/folders/detail_match_screen.dart';
 
 class ComponentDataFolders extends StatefulWidget {
@@ -22,6 +22,8 @@ class _ComponentDataFoldersState extends State<ComponentDataFolders> {
 
   bool isLoading = true;
   final TextEditingController searchController = TextEditingController();
+
+  String currentSort = "Data Terlama";
 
   Timer? _autoRefreshTimer;
 
@@ -41,26 +43,70 @@ class _ComponentDataFoldersState extends State<ComponentDataFolders> {
     super.dispose();
   }
 
+  void _applySearchAndSort() {
+    List<dynamic> temp = List.from(allMatch);
+    if (searchController.text.isNotEmpty) {
+      final keyword = searchController.text.toLowerCase();
+      temp = temp.where((match) {
+        final title = (match['title'] ?? '').toString().toLowerCase();
+        final customId = (match['matchCustomId'] ?? '')
+            .toString()
+            .toLowerCase();
+        return title.contains(keyword) || customId.contains(keyword);
+      }).toList();
+    }
+    if (currentSort == 'Data Terbaru') {
+      temp = temp.reversed.toList();
+    } else if (currentSort == 'Nama A-Z') {
+      temp.sort((a, b) {
+        final titleA = (a['title'] ?? '').toString().toLowerCase();
+        final titleB = (b['title'] ?? '').toString().toLowerCase();
+        return titleA.compareTo(titleB);
+      });
+    }
+    setState(() {
+      listMatch = temp;
+    });
+  }
+
+  PopupMenuItem<String> _buildPopupItem(String title) {
+    final isSelected = currentSort == title;
+    return PopupMenuItem<String>(
+      value: title,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> fetchDataFolders() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final adminId = prefs.getString('userId');
-
       if (adminId == null) return;
-
       final url = Uri.parse('${ApiConfig.baseUrl}/match/admin/$adminId');
       final response = await http.get(url);
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (mounted) {
           setState(() {
             allMatch = data;
-            if (searchController.text.isEmpty) {
-              listMatch = data;
-            } else {
-              searchMatch(searchController.text);
-            }
+            _applySearchAndSort();
             isLoading = false;
           });
         }
@@ -76,39 +122,21 @@ class _ComponentDataFoldersState extends State<ComponentDataFolders> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final adminId = prefs.getString('userId');
-
       if (adminId == null) return;
-
       final url = Uri.parse('${ApiConfig.baseUrl}/match/admin/$adminId');
       final response = await http.get(url);
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (mounted) {
           setState(() {
             allMatch = data;
-            if (searchController.text.isEmpty) {
-              listMatch = data;
-            } else {
-              searchMatch(searchController.text);
-            }
+            _applySearchAndSort();
           });
         }
       }
     } catch (e) {
       // Abaikan error
     }
-  }
-
-  void searchMatch(String keyword) {
-    final result = allMatch.where((match) {
-      final title = (match['title'] ?? '').toLowerCase();
-      return title.contains(keyword.toLowerCase());
-    }).toList();
-
-    setState(() {
-      listMatch = result;
-    });
   }
 
   String _formatTanggalIndo(String dateStr) {
@@ -136,7 +164,6 @@ class _ComponentDataFoldersState extends State<ComponentDataFolders> {
         'November',
         'Desember',
       ];
-
       int monthIndex = int.parse(month);
       if (monthIndex >= 1 && monthIndex <= 12) {
         return '$day ${namaBulan[monthIndex]} $year';
@@ -219,7 +246,7 @@ class _ComponentDataFoldersState extends State<ComponentDataFolders> {
                   child: TextField(
                     controller: searchController,
                     onChanged: (value) {
-                      searchMatch(value);
+                      _applySearchAndSort();
                     },
                     decoration: const InputDecoration(
                       hintStyle: text14greyBold,
@@ -233,12 +260,38 @@ class _ComponentDataFoldersState extends State<ComponentDataFolders> {
               ),
               Container(
                 margin: const EdgeInsets.only(left: 5),
-                child: IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.library_books_outlined,
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    splashColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                  ),
+                  child: PopupMenuButton<String>(
+                    icon: const Icon(
+                      Icons.library_books_outlined,
+                      color: primaryColor,
+                      size: 35,
+                    ),
                     color: primaryColor,
-                    size: 35,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        15,
+                      ), // Sudut melengkung
+                    ),
+                    offset: const Offset(0, 50),
+                    elevation: 5,
+                    onSelected: (String value) {
+                      setState(() {
+                        currentSort = value;
+                        _applySearchAndSort();
+                      });
+                    },
+                    itemBuilder: (BuildContext context) {
+                      return [
+                        _buildPopupItem('Data Terlama'),
+                        _buildPopupItem('Data Terbaru'),
+                        _buildPopupItem('Nama A-Z'),
+                      ];
+                    },
                   ),
                 ),
               ),
