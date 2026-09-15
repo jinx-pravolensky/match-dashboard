@@ -1,21 +1,19 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-  static const String ipAddress = '192.168.1.9';
-  static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:3000/api';
-    }
-    return 'http://$ipAddress:3000/api';
-  }
+  // static const String ipAddress = '192.168.1.9';
+  // static String get baseUrl {
+  //   if (kIsWeb) {
+  //     return 'http://localhost:3000/api';
+  //   }
+  //   return 'http://$ipAddress:3000/api';
+  // }
 
-  /* 
-  static const String vpsIpAddress = 'http://76.13.17.73:3000';
+  static const String vpsIpAddress = 'http://109.110.188.178:3000';
   static String get baseUrl {
     if (kIsWeb) {
       return 'http://localhost:3000/api';
     }
     return '$vpsIpAddress/api';
   }
-  */
 }
